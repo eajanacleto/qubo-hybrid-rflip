@@ -15,7 +15,9 @@
 #include "../core/evaluation.hpp"
 #include "../core/solution.hpp"
 #include "../core/ubqp.hpp"
-#include "evaluate.hpp"
+#include "evaluate/hybrid.hpp"
+#include "neighbor/generate.hpp"
+#include "neighbor/replace.hpp"
 #include "local_search.hpp"
 
 namespace qubo {

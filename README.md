@@ -21,9 +21,21 @@ qubo-hybrid-rflip-experiments/
 │   │   └── utils.hpp     # Utility functions
 │   │
 │   ├── algorithms/       # Algorithm implementations
-│   │   ├── evaluate.hpp  # Evaluation algorithms
-│   │   ├── local_search.hpp # Local Search
-│   │   └── vns.hpp       # Variable Neighborhood Search
+│   │   ├── evaluate.hpp  # Main include for evaluation
+│   │   ├── evaluate/     # Evaluation algorithms
+│   │   │   ├── basic.hpp     # O(n²) basic evaluation
+│   │   │   ├── rfliprv.hpp   # O(r²) r-flip-rv evaluation
+│   │   │   ├── hybrid.hpp    # Hybrid strategy selection
+│   │   │   └── verify.hpp    # Debug verification functions
+│   │   ├── rv/           # Reevaluation vector algorithms
+│   │   │   ├── build.hpp     # Build RV from scratch O(n²)
+│   │   │   ├── update.hpp    # Incremental RV update O(nr)
+│   │   │   └── hybrid.hpp    # Hybrid RV update strategy
+│   │   ├── neighbor/     # Neighbor solution operations
+│   │   │   ├── generate.hpp  # Random neighbor generation
+│   │   │   └── replace.hpp   # Incumbent replacement
+│   │   ├── local_search.hpp  # Local Search algorithm
+│   │   └── vns.hpp           # Variable Neighborhood Search
 │   │
 │   └── experiments/      # Experiment definitions
 │       └── experiments.hpp # Experiment functions
@@ -57,7 +69,23 @@ qubo-hybrid-rflip-experiments/
 - **utils.hpp**: Timing utilities for performance measurement
 
 ### Algorithms (`src/algorithms/`)
-- **evaluate.hpp**: Evaluation algorithms including O(n²) basic and O(r²) delta evaluation
+
+#### Evaluation (`src/algorithms/evaluate/`)
+- **basic.hpp**: O(n²) basic evaluation - computes objective from scratch
+- **rfliprv.hpp**: O(r²) r-flip-rv evaluation - uses reevaluation vector
+- **hybrid.hpp**: Hybrid strategy selection between basic and r-flip-rv
+- **verify.hpp**: Debug verification functions for correctness checking
+
+#### Reevaluation Vector (`src/algorithms/rv/`)
+- **build.hpp**: Build reevaluation vector from scratch O(n²)
+- **update.hpp**: Incremental reevaluation vector update O(nr)
+- **hybrid.hpp**: Hybrid RV update strategy selection
+
+#### Neighbor Operations (`src/algorithms/neighbor/`)
+- **generate.hpp**: Random r-flip neighbor generation
+- **replace.hpp**: Replace incumbent with neighbor solution
+
+#### Metaheuristics
 - **local_search.hpp**: Stochastic local search with r-flip neighborhood
 - **vns.hpp**: Variable Neighborhood Search metaheuristic
 
