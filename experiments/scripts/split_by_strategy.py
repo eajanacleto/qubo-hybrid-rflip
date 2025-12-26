@@ -36,12 +36,45 @@ def get_strategy_name(result: dict) -> str:
     return strategy_names.get(ls_strategy, f"strategy_{ls_strategy}")
 
 
+def load_json_robust(filepath: str) -> list:
+    """Load JSON file, handling truncated files gracefully."""
+    try:
+        with open(filepath) as f:
+            return json.load(f)
+    except json.JSONDecodeError:
+        # Try to recover partial data from truncated JSON
+        results = []
+        with open(filepath) as f:
+            content = f.read()
+        
+        # Try to find the last complete object
+        # Look for pattern: }, followed by newline/space and {
+        import re
+        # Match complete JSON objects in array format
+        pattern = r'\{\s*"params"\s*:\s*\{[^}]+\}[^}]*"result"\s*:\s*\{[^}]+\}\s*\}'
+        matches = re.findall(pattern, content, re.DOTALL)
+        
+        for match in matches:
+            try:
+                obj = json.loads(match)
+                results.append(obj)
+            except:
+                pass
+        
+        if results:
+            print(f"  Recovered {len(results)} results from truncated JSON")
+        return results
+
+
 def split_results(input_file: str, output_dir: str):
     """Split results file by local search strategy."""
     
-    # Load input file
-    with open(input_file) as f:
-        results = json.load(f)
+    # Load input file (robustly)
+    results = load_json_robust(input_file)
+    
+    if not results:
+        print("  No results to split")
+        return
     
     if not isinstance(results, list):
         results = [results]
@@ -56,7 +89,7 @@ def split_results(input_file: str, output_dir: str):
     os.makedirs(output_dir, exist_ok=True)
     
     # Write separate files
-    for strategy, strategy_results in by_strategy.items():
+    for strategy, strategy_results in sorted(by_strategy.items()):
         output_file = os.path.join(output_dir, f"results_{strategy}.json")
         with open(output_file, "w") as f:
             json.dump(strategy_results, f, indent=1)
@@ -67,14 +100,14 @@ def split_results(input_file: str, output_dir: str):
         "total_results": len(results),
         "strategies": {
             strategy: len(strategy_results)
-            for strategy, strategy_results in by_strategy.items()
+            for strategy, strategy_results in sorted(by_strategy.items())
         },
         "input_file": input_file,
     }
     summary_file = os.path.join(output_dir, "summary.json")
     with open(summary_file, "w") as f:
         json.dump(summary, f, indent=2)
-    print(f"\nSummary written to {summary_file}")
+    print(f"\n  Summary: {summary['strategies']}")
 
 
 def main():

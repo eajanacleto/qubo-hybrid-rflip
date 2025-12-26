@@ -322,6 +322,119 @@ def generate_vns_count_figures(data: List[dict]):
             )
 
 
+def generate_ls_all_figures(data: List[dict], output_base_dir: str):
+    """Generate ls_all figures, separated by local search strategy."""
+    ls_all_data = [x for x in data if x["params"]["exp"] == "ls_all"]
+    if not ls_all_data:
+        print("  No ls_all data found")
+        return
+    
+    original_dir = os.getcwd()
+    
+    # Group by ls_strategy_name
+    for ls_strategy_name, strategy_data in groupby(
+        lambda x: x["params"].get("ls_strategy_name", "unknown"),
+        ls_all_data
+    ):
+        strategy_data = list(strategy_data)
+        print(f"  Strategy: {ls_strategy_name} ({len(strategy_data)} results)")
+        
+        # Create strategy subdirectory
+        strategy_dir = os.path.join(output_base_dir, ls_strategy_name)
+        os.makedirs(strategy_dir, exist_ok=True)
+        os.chdir(strategy_dir)
+        
+        # Generate figures for this strategy
+        for (instance, n), inst_data in groupby(
+            lambda x: (x["params"]["instance"], x["params"]["n"]),
+            strategy_data
+        ):
+            inst_data = list(inst_data)
+            
+            plots = []
+            for i, name in enumerate(STRATEGY_NAMES[2:], start=2):
+                plot = make_speedup_plot(name, inst_data, n, i, "dt")
+                if plot:
+                    plots.append(plot)
+            
+            rv_plot = make_speedup_plot("RV", inst_data, n, 1, "dt",
+                                        options="mark=none,dash dot,thick,color=gray")
+            if rv_plot:
+                plots.append(rv_plot)
+            
+            plots.append(Plot(options="mark=none,dashed,thick,color=red",
+                             coordinates=[(0, 1), (100, 1)]))
+            
+            if plots:
+                create_figure(
+                    f"ls-{instance}".replace(".", "-"),
+                    [
+                        "xlabel={$r$ (\\% of $n$)}",
+                        "ylabel={speedup}",
+                        "xmin=1", "xmax=99",
+                        "legend cell align={left}",
+                        "legend columns=3",
+                        "legend pos={north east}",
+                    ],
+                    plots
+                )
+        
+        os.chdir(original_dir)
+
+
+def generate_ls_count_all_figures(data: List[dict], output_base_dir: str):
+    """Generate ls_count_all figures, separated by local search strategy."""
+    ls_count_all_data = [x for x in data if x["params"]["exp"] == "ls_count_all"]
+    if not ls_count_all_data:
+        print("  No ls_count_all data found")
+        return
+    
+    original_dir = os.getcwd()
+    
+    # Group by ls_strategy_name
+    for ls_strategy_name, strategy_data in groupby(
+        lambda x: x["params"].get("ls_strategy_name", "unknown"),
+        ls_count_all_data
+    ):
+        strategy_data = list(strategy_data)
+        print(f"  Strategy: {ls_strategy_name} ({len(strategy_data)} results)")
+        
+        # Create strategy subdirectory
+        strategy_dir = os.path.join(output_base_dir, ls_strategy_name)
+        os.makedirs(strategy_dir, exist_ok=True)
+        os.chdir(strategy_dir)
+        
+        # Generate figures for this strategy
+        for (instance, n), inst_data in groupby(
+            lambda x: (x["params"]["instance"], x["params"]["n"]),
+            strategy_data
+        ):
+            inst_data = list(inst_data)
+            
+            plots = []
+            for i, name in enumerate(STRATEGY_NAMES[2:], start=2):
+                plot = make_usage_plot(name, inst_data, n, i)
+                if plot:
+                    plots.append(plot)
+            
+            if plots:
+                create_figure(
+                    f"ls-count-{instance}".replace(".", "-"),
+                    [
+                        "xlabel={$r$ (\\% of $n$)}",
+                        "ylabel={\\% \\textit{r-flip-rv} usage}",
+                        "xmin=1", "xmax=99",
+                        "ytick={0, 25, 50, 75, 100}",
+                        "legend cell align={left}",
+                        "legend columns=2",
+                        "legend pos={north east}",
+                    ],
+                    plots
+                )
+        
+        os.chdir(original_dir)
+
+
 #==============================================================================
 # MAIN
 #==============================================================================
@@ -337,15 +450,14 @@ def main():
     
     print(f"Loaded {len(data)} results from {sys.argv[1]}")
     
-    # Mudar para diretório de output
-    if len(sys.argv) > 2:
-        output_dir = sys.argv[2]
-        os.makedirs(output_dir, exist_ok=True)
-        os.chdir(output_dir)
-        print(f"Output directory: {output_dir}")
+    # Diretório de output
+    output_dir = sys.argv[2] if len(sys.argv) > 2 else "."
+    os.makedirs(output_dir, exist_ok=True)
+    os.chdir(output_dir)
+    print(f"Output directory: {os.path.abspath(output_dir)}\n")
     
     # Gerar figuras para cada tipo de experimento
-    print("\nGenerating eval figures...")
+    print("Generating eval figures...")
     generate_eval_figures(data)
     
     print("\nGenerating ls figures...")
@@ -360,8 +472,21 @@ def main():
     print("\nGenerating vns_count figures...")
     generate_vns_count_figures(data)
     
-    # Limpar arquivos temporários
-    os.system("rm -f *.aux *.dvi *.log 2>/dev/null")
+    # ls_all e ls_count_all - separados por estratégia
+    print("\nGenerating ls_all figures (by strategy)...")
+    generate_ls_all_figures(data, os.getcwd())
+    
+    print("\nGenerating ls_count_all figures (by strategy)...")
+    generate_ls_count_all_figures(data, os.getcwd())
+    
+    # Limpar arquivos temporários em todos os diretórios
+    for root, dirs, files in os.walk("."):
+        for f in files:
+            if f.endswith((".aux", ".dvi", ".log")):
+                try:
+                    os.remove(os.path.join(root, f))
+                except:
+                    pass
     
     print("\nDone!")
 

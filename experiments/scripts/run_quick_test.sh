@@ -107,13 +107,23 @@ fi
 #------------------------------------------------------------------------------
 log_section "Teste: ls_all"
 
-timeout $TEST_TIMEOUT "$EXECUTABLE" "$RESULTS_DIR/test_ls_all.json" "ls_all" 2>&1 | tail -5 || true
+# Usar timeout maior para capturar mais estratégias
+LS_ALL_TIMEOUT=$((TEST_TIMEOUT * 2))
+timeout $LS_ALL_TIMEOUT "$EXECUTABLE" "$RESULTS_DIR/test_ls_all.json" "ls_all" 2>&1 | tail -5 || true
 
 if [ -f "$RESULTS_DIR/test_ls_all.json" ]; then
     LINES=$(wc -l < "$RESULTS_DIR/test_ls_all.json")
-    # Contar estratégias únicas
-    STRATEGIES=$(python3 -c "import json; d=json.load(open('$RESULTS_DIR/test_ls_all.json')); print(len(set(x['params'].get('ls_strategy_name','?') for x in d)))" 2>/dev/null || echo "?")
+    # Contar estratégias únicas usando grep (mais robusto)
+    STRATEGIES=$(grep -o '"ls_strategy_name": "[^"]*"' "$RESULTS_DIR/test_ls_all.json" 2>/dev/null | sort -u | wc -l)
     log_success "ls_all: ${LINES} linhas, ${STRATEGIES} estratégias"
+    
+    # Separar resultados por estratégia
+    if [ "$STRATEGIES" -gt 0 ]; then
+        mkdir -p "$RESULTS_DIR/by_strategy"
+        python3 "$PROJECT_DIR/experiments/scripts/split_by_strategy.py" \
+            "$RESULTS_DIR/test_ls_all.json" \
+            "$RESULTS_DIR/by_strategy/" 2>&1 | sed 's/^/  /'
+    fi
 else
     log_warning "ls_all: arquivo não gerado (timeout?)"
 fi
@@ -182,19 +192,50 @@ log_section "Mesclando resultados"
 python3 - "$RESULTS_DIR/test_complete.json" "$RESULTS_DIR"/test_*.json << 'EOF'
 import json
 import sys
+import re
+import os
+
+def load_json_robust(filepath):
+    """Load JSON file, handling truncated files gracefully."""
+    if not os.path.exists(filepath) or os.path.getsize(filepath) == 0:
+        return []
+    
+    try:
+        with open(filepath) as f:
+            data = json.load(f)
+            return data if isinstance(data, list) else [data]
+    except json.JSONDecodeError:
+        # Try to recover partial data from truncated JSON
+        results = []
+        with open(filepath) as f:
+            content = f.read()
+        
+        # Match complete JSON objects
+        pattern = r'\{\s*"params"\s*:\s*\{[^}]+\}[^}]*"result"\s*:\s*\{[^}]+\}\s*\}'
+        matches = re.findall(pattern, content, re.DOTALL)
+        
+        for match in matches:
+            try:
+                obj = json.loads(match)
+                results.append(obj)
+            except:
+                pass
+        
+        if results:
+            print(f"  Recovered {len(results)} from truncated {os.path.basename(filepath)}")
+        return results
 
 output_file = sys.argv[1]
-input_files = sys.argv[2:]
+input_files = [f for f in sys.argv[2:] if f != output_file]
 
 all_results = []
 for f in input_files:
     try:
-        with open(f) as fp:
-            data = json.load(fp)
-            if isinstance(data, list):
-                all_results.extend(data)
+        data = load_json_robust(f)
+        if data:
+            all_results.extend(data)
     except Exception as e:
-        pass
+        print(f"  Error loading {f}: {e}")
 
 with open(output_file, 'w') as fp:
     json.dump(all_results, fp, indent=1)
