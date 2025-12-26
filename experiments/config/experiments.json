@@ -106,16 +106,16 @@
   },
   
   "runtime": {
-    "max_threads": 0,
+    "max_threads": 4,
     "timeouts": {
-      "eval": 0,
-      "ls": 0,
-      "ls_count": 0,
-      "ls_all": 0,
-      "ls_count_all": 0,
-      "vns_figures": 0,
-      "vns_figures_count": 0,
-      "vns_tables": 0
+      "eval": 60,
+      "ls": 60,
+      "ls_count": 60,
+      "ls_all": 60,
+      "ls_count_all": 60,
+      "vns_figures": 60,
+      "vns_figures_count": 60,
+      "vns_tables": 60
     },
     "enabled_experiments": {
       "eval": true,

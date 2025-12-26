@@ -3,7 +3,8 @@
 # QUBO Hybrid R-Flip - Quick Test Runner
 #==============================================================================
 # Script de teste rápido para validar a pipeline completa.
-# Executa versões reduzidas dos experimentos com timeout.
+# Usa o conjunto de instâncias "quick_test" definido em instances.json:
+#   - bqp50.1, bqp100.1, G1
 #==============================================================================
 
 set -e
@@ -19,10 +20,10 @@ FIGURES_DIR="${OUTPUT_DIR}/test_figures"
 
 EXECUTABLE="${PROJECT_DIR}/main.out"
 GENFIGURES_SCRIPT="${PROJECT_DIR}/experiments/scripts/genfigures.py"
+GENTABLES_SCRIPT="${PROJECT_DIR}/experiments/scripts/gentables.py"
 
-# Timeouts curtos para teste (em segundos)
-TEST_TIMEOUT=30
-TABLES_TIMEOUT=20
+# Timeout para teste (em segundos)
+TEST_TIMEOUT=120
 
 #==============================================================================
 # CORES E FUNÇÕES
@@ -51,6 +52,16 @@ echo "  QUBO Hybrid R-Flip - Quick Test"
 echo "=============================================="
 echo -e "${NC}"
 
+# Mostrar instâncias do quick_test
+log_info "Instâncias usadas (de instances.json -> quick_test):"
+python3 -c "
+import json
+with open('$PROJECT_DIR/experiments/config/instances.json') as f:
+    data = json.load(f)
+    instances = data['instance_sets']['quick_test']['instances']
+    print('  ' + ', '.join(instances))
+"
+
 #------------------------------------------------------------------------------
 # Preparação
 #------------------------------------------------------------------------------
@@ -75,176 +86,53 @@ make clean && make
 log_success "Compilado com sucesso"
 
 #------------------------------------------------------------------------------
-# Teste: eval
+# Executar quick_test
 #------------------------------------------------------------------------------
-log_section "Teste: eval"
+log_section "Executando quick_test"
 
-timeout $TEST_TIMEOUT "$EXECUTABLE" "$RESULTS_DIR/test_eval.json" "eval" 2>&1 | tail -5 || true
+log_info "Este experimento usa instâncias do conjunto 'quick_test' e executa:"
+log_info "  - eval (avaliação de tempo)"
+log_info "  - ls_all (local search com todas as estratégias)"
+log_info "  - ls_count_all (contagem de avaliações)"
+log_info "  - vns_tables_all (VNS com todas as estratégias de LS)"
 
-if [ -f "$RESULTS_DIR/test_eval.json" ]; then
-    LINES=$(wc -l < "$RESULTS_DIR/test_eval.json")
-    log_success "eval: ${LINES} linhas geradas"
-else
-    log_warning "eval: arquivo não gerado (timeout?)"
-fi
+START_TIME=$(date +%s)
 
-#------------------------------------------------------------------------------
-# Teste: ls
-#------------------------------------------------------------------------------
-log_section "Teste: ls"
+timeout $TEST_TIMEOUT "$EXECUTABLE" "$RESULTS_DIR/test_quick.json" "quick_test" 2>&1 || {
+    log_warning "Experimento interrompido por timeout (${TEST_TIMEOUT}s)"
+}
 
-timeout $TEST_TIMEOUT "$EXECUTABLE" "$RESULTS_DIR/test_ls.json" "ls" 2>&1 | tail -5 || true
+END_TIME=$(date +%s)
+ELAPSED=$((END_TIME - START_TIME))
 
-if [ -f "$RESULTS_DIR/test_ls.json" ]; then
-    LINES=$(wc -l < "$RESULTS_DIR/test_ls.json")
-    log_success "ls: ${LINES} linhas geradas"
-else
-    log_warning "ls: arquivo não gerado (timeout?)"
-fi
-
-#------------------------------------------------------------------------------
-# Teste: ls_all (todas as estratégias de local search)
-#------------------------------------------------------------------------------
-log_section "Teste: ls_all"
-
-# Usar timeout maior para capturar mais estratégias
-LS_ALL_TIMEOUT=$((TEST_TIMEOUT * 2))
-timeout $LS_ALL_TIMEOUT "$EXECUTABLE" "$RESULTS_DIR/test_ls_all.json" "ls_all" 2>&1 | tail -5 || true
-
-if [ -f "$RESULTS_DIR/test_ls_all.json" ]; then
-    LINES=$(wc -l < "$RESULTS_DIR/test_ls_all.json")
-    # Contar estratégias únicas usando grep (mais robusto)
-    STRATEGIES=$(grep -o '"ls_strategy_name": "[^"]*"' "$RESULTS_DIR/test_ls_all.json" 2>/dev/null | sort -u | wc -l)
-    log_success "ls_all: ${LINES} linhas, ${STRATEGIES} estratégias"
+if [ -f "$RESULTS_DIR/test_quick.json" ]; then
+    LINES=$(wc -l < "$RESULTS_DIR/test_quick.json")
+    RESULTS=$(grep -c '"result"' "$RESULTS_DIR/test_quick.json" 2>/dev/null || echo 0)
+    log_success "quick_test: ${RESULTS} resultados gerados em ${ELAPSED}s"
     
-    # Separar resultados por estratégia
-    if [ "$STRATEGIES" -gt 0 ]; then
-        mkdir -p "$RESULTS_DIR/by_strategy"
-        python3 "$PROJECT_DIR/experiments/scripts/split_by_strategy.py" \
-            "$RESULTS_DIR/test_ls_all.json" \
-            "$RESULTS_DIR/by_strategy/" 2>&1 | sed 's/^/  /'
-    fi
-else
-    log_warning "ls_all: arquivo não gerado (timeout?)"
-fi
-
-#------------------------------------------------------------------------------
-# Teste: ls_count
-#------------------------------------------------------------------------------
-log_section "Teste: ls_count"
-
-timeout $TEST_TIMEOUT "$EXECUTABLE" "$RESULTS_DIR/test_ls_count.json" "ls_count" 2>&1 | tail -5 || true
-
-if [ -f "$RESULTS_DIR/test_ls_count.json" ]; then
-    LINES=$(wc -l < "$RESULTS_DIR/test_ls_count.json")
-    log_success "ls_count: ${LINES} linhas geradas"
-else
-    log_warning "ls_count: arquivo não gerado (timeout?)"
-fi
-
-#------------------------------------------------------------------------------
-# Teste: vns_figures
-#------------------------------------------------------------------------------
-log_section "Teste: vns_figures"
-
-timeout $TEST_TIMEOUT "$EXECUTABLE" "$RESULTS_DIR/test_vns.json" "vns_figures" 2>&1 | tail -5 || true
-
-if [ -f "$RESULTS_DIR/test_vns.json" ]; then
-    LINES=$(wc -l < "$RESULTS_DIR/test_vns.json")
-    log_success "vns_figures: ${LINES} linhas geradas"
-else
-    log_warning "vns_figures: arquivo não gerado (timeout?)"
-fi
-
-#------------------------------------------------------------------------------
-# Teste: vns_figures_count
-#------------------------------------------------------------------------------
-log_section "Teste: vns_figures_count"
-
-timeout $TEST_TIMEOUT "$EXECUTABLE" "$RESULTS_DIR/test_vns_count.json" "vns_figures_count" 2>&1 | tail -5 || true
-
-if [ -f "$RESULTS_DIR/test_vns_count.json" ]; then
-    LINES=$(wc -l < "$RESULTS_DIR/test_vns_count.json")
-    log_success "vns_figures_count: ${LINES} linhas geradas"
-else
-    log_warning "vns_figures_count: arquivo não gerado (timeout?)"
-fi
-
-#------------------------------------------------------------------------------
-# Teste: vns_tables
-#------------------------------------------------------------------------------
-log_section "Teste: vns_tables"
-
-timeout $TABLES_TIMEOUT "$EXECUTABLE" "$RESULTS_DIR/test_tables.json" "vns_tables" 2>&1 | tail -5 || true
-
-if [ -f "$RESULTS_DIR/test_tables.json" ]; then
-    LINES=$(wc -l < "$RESULTS_DIR/test_tables.json")
-    log_success "vns_tables: ${LINES} linhas geradas"
-else
-    log_warning "vns_tables: arquivo não gerado (timeout?)"
-fi
-
-#------------------------------------------------------------------------------
-# Mesclar resultados
-#------------------------------------------------------------------------------
-log_section "Mesclando resultados"
-
-python3 - "$RESULTS_DIR/test_complete.json" "$RESULTS_DIR"/test_*.json << 'EOF'
+    # Mostrar estatísticas por tipo de experimento
+    echo ""
+    log_info "Resultados por experimento:"
+    python3 -c "
 import json
-import sys
-import re
-import os
-
-def load_json_robust(filepath):
-    """Load JSON file, handling truncated files gracefully."""
-    if not os.path.exists(filepath) or os.path.getsize(filepath) == 0:
-        return []
+with open('$RESULTS_DIR/test_quick.json') as f:
+    data = json.load(f)
     
-    try:
-        with open(filepath) as f:
-            data = json.load(f)
-            return data if isinstance(data, list) else [data]
-    except json.JSONDecodeError:
-        # Try to recover partial data from truncated JSON
-        results = []
-        with open(filepath) as f:
-            content = f.read()
-        
-        # Match complete JSON objects
-        pattern = r'\{\s*"params"\s*:\s*\{[^}]+\}[^}]*"result"\s*:\s*\{[^}]+\}\s*\}'
-        matches = re.findall(pattern, content, re.DOTALL)
-        
-        for match in matches:
-            try:
-                obj = json.loads(match)
-                results.append(obj)
-            except:
-                pass
-        
-        if results:
-            print(f"  Recovered {len(results)} from truncated {os.path.basename(filepath)}")
-        return results
+# Count by experiment type
+by_exp = {}
+for item in data:
+    exp = item.get('params', {}).get('exp', 'unknown')
+    by_exp[exp] = by_exp.get(exp, 0) + 1
 
-output_file = sys.argv[1]
-input_files = [f for f in sys.argv[2:] if f != output_file]
-
-all_results = []
-for f in input_files:
-    try:
-        data = load_json_robust(f)
-        if data:
-            all_results.extend(data)
-    except Exception as e:
-        print(f"  Error loading {f}: {e}")
-
-with open(output_file, 'w') as fp:
-    json.dump(all_results, fp, indent=1)
-
-print(f"Total: {len(all_results)} resultados mesclados")
-EOF
+for exp, count in sorted(by_exp.items()):
+    print(f'  {exp}: {count} resultados')
+" 2>/dev/null || log_warning "Não foi possível analisar resultados"
+else
+    log_warning "Arquivo de resultados não gerado"
+fi
 
 #------------------------------------------------------------------------------
-# Gerar figuras
+# Gerar figuras (se houver dados)
 #------------------------------------------------------------------------------
 log_section "Gerando figuras"
 
@@ -253,29 +141,28 @@ if [ -d "$PROJECT_DIR/.venv" ]; then
 fi
 
 cd "$PROJECT_DIR"
-python3 "$GENFIGURES_SCRIPT" "$RESULTS_DIR/test_complete.json" "$FIGURES_DIR/" 2>&1 || {
-    log_warning "Alguns gráficos podem não ter sido gerados (dados insuficientes)"
-}
-
-# Limpar arquivos temporários
-rm -f "$FIGURES_DIR"/*.aux "$FIGURES_DIR"/*.dvi "$FIGURES_DIR"/*.log 2>/dev/null || true
+if [ -f "$RESULTS_DIR/test_quick.json" ] && [ -f "$GENFIGURES_SCRIPT" ]; then
+    python3 "$GENFIGURES_SCRIPT" "$RESULTS_DIR/test_quick.json" "$FIGURES_DIR/" 2>&1 || {
+        log_warning "Alguns gráficos podem não ter sido gerados (dados insuficientes)"
+    }
+    
+    # Limpar arquivos temporários
+    rm -f "$FIGURES_DIR"/*.aux "$FIGURES_DIR"/*.dvi "$FIGURES_DIR"/*.log 2>/dev/null || true
+else
+    log_warning "Script de figuras ou dados não disponíveis"
+fi
 
 #------------------------------------------------------------------------------
 # Gerar tabelas
 #------------------------------------------------------------------------------
 log_section "Gerando tabelas"
 
-GENTABLES_SCRIPT="${PROJECT_DIR}/experiments/scripts/gentables.py"
-TABLES_DIR="${FIGURES_DIR}"
-
-if [ -f "$GENTABLES_SCRIPT" ] && [ -f "$RESULTS_DIR/test_complete.json" ]; then
-    python3 "$GENTABLES_SCRIPT" "$RESULTS_DIR/test_complete.json" > "$TABLES_DIR/tables_output.txt" 2>&1 || true
+if [ -f "$GENTABLES_SCRIPT" ] && [ -f "$RESULTS_DIR/test_quick.json" ]; then
+    python3 "$GENTABLES_SCRIPT" "$RESULTS_DIR/test_quick.json" > "$FIGURES_DIR/tables_output.txt" 2>&1 || true
     
-    if [ -s "$TABLES_DIR/tables_output.txt" ]; then
-        TABLE_LINES=$(wc -l < "$TABLES_DIR/tables_output.txt")
-        log_success "Tabelas geradas: ${TABLE_LINES} linhas em tables_output.txt"
-        echo "Preview das tabelas:"
-        head -5 "$TABLES_DIR/tables_output.txt" || true
+    if [ -s "$FIGURES_DIR/tables_output.txt" ]; then
+        TABLE_LINES=$(wc -l < "$FIGURES_DIR/tables_output.txt")
+        log_success "Tabelas geradas: ${TABLE_LINES} linhas"
     else
         log_warning "Nenhuma tabela gerada (dados insuficientes para vns_tables)"
     fi
@@ -290,7 +177,7 @@ log_section "Resumo"
 
 echo ""
 echo "Arquivos de resultados:"
-ls -lh "$RESULTS_DIR"/*.json 2>/dev/null | head -10
+ls -lh "$RESULTS_DIR"/*.json 2>/dev/null || echo "  (nenhum)"
 
 echo ""
 echo "Figuras geradas:"
@@ -306,7 +193,10 @@ fi
 
 echo ""
 echo -e "${GREEN}=============================================="
-echo "  Teste concluído!"
+echo "  Quick Test concluído!"
 echo "=============================================="
 echo -e "${NC}"
 echo "Tempo total: $SECONDS segundos"
+echo ""
+echo "Instâncias testadas: bqp50.1, bqp100.1, G1"
+echo "Definido em: experiments/config/instances.json -> quick_test"

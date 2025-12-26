@@ -52,6 +52,8 @@ using qubo::get_vns_count_experiments;
 using qubo::get_vns_table_experiments;
 using qubo::get_vns_table_experiments_first_improvement;
 using qubo::get_vns_table_experiments_best_improvement;
+using qubo::get_vns_table_experiments_runtime;
+using qubo::get_all_ls_strategies;
 
 using std::async;
 using std::cout;
@@ -336,18 +338,44 @@ void run_vns_tables_experiment_with_strategy(
 }
 
 /**
- * @brief Run VNS tables experiment for all LS strategies (first_improvement, best_improvement).
+ * @brief Run VNS tables experiment for all LS strategies using runtime dispatch.
+ * 
+ * This version uses vns_runtime which allows selecting the LS strategy at runtime,
+ * avoiding the need to modify vns.hpp when adding new LS strategies.
  */
 void run_vns_tables_all_strategies_experiment(ExperimentRunner& runner, const vector<string>& instances) {
-  cout << "Running VNS tables with first_improvement..." << endl;
-  run_vns_tables_experiment_with_strategy(
-      runner, instances, get_vns_table_experiments_first_improvement, 
-      static_cast<int>(ls_strategy::first_improvement), "first_improvement");
+  auto experiments = get_vns_table_experiments_runtime();
   
-  cout << "Running VNS tables with best_improvement..." << endl;
-  run_vns_tables_experiment_with_strategy(
-      runner, instances, get_vns_table_experiments_best_improvement,
-      static_cast<int>(ls_strategy::best_improvement), "best_improvement");
+  for (ls_strategy ls_strat : get_all_ls_strategies()) {
+    string ls_name = (ls_strat == ls_strategy::first_improvement) ? "first_improvement" : "best_improvement";
+    cout << "Running VNS tables with " << ls_name << "..." << endl;
+    
+    for (const string& instance : instances) {
+      for (size_t r_div : {30, 60, 90}) {
+        vector<future<void>> futures;
+        auto Q = make_shared<ubqp>(move(ubqp::load(instance)));
+
+        for (auto& p : experiments) {
+          futures.emplace_back(async([&runner, p, Q, instance, r_div, ls_strat, &ls_name]() {
+            json params;
+            params["exp"] = "vns_tables";
+            params["instance"] = instance;
+            params["n"] = Q->n;
+            params["eval"] = static_cast<int>(p.first);
+            params["r_max"] = (Q->n * r_div) / 100;
+            params["r_step"] = 1;
+            params["iters"] = 10;
+            params["ls_iters"] = Q->n;
+            params["ls_strategy"] = static_cast<int>(ls_strat);
+            params["ls_strategy_name"] = ls_name;
+            runner.run(p.second, *Q, params);
+          }));
+        }
+
+        for (auto& f : futures) f.wait();
+      }
+    }
+  }
 }
 
 /**
@@ -381,6 +409,7 @@ void print_usage(const char* program_name) {
   cout << "  vns_figures_count - VNS algorithm choice counting" << endl;
   cout << "  vns_tables        - VNS benchmark for tables (first_improvement only)" << endl;
   cout << "  vns_tables_all    - VNS benchmark for tables (ALL LS strategies)" << endl;
+  cout << "  quick_test        - Quick validation (uses quick_test instance set)" << endl;
   cout << endl;
   cout << "Examples:" << endl;
   cout << "  " << program_name << " output/results/eval.json eval" << endl;
@@ -427,6 +456,19 @@ int main(int argc, const char* argv[]) {
     }
     else if (experiment == "vns_tables_all") {
       run_vns_tables_all_strategies_experiment(runner, load_instances("vns_tables_all"));
+    }
+    else if (experiment == "quick_test") {
+      // Quick test runs all experiment types with quick_test instance set
+      cout << "Running quick test with quick_test instances..." << endl;
+      auto instances = load_instances("quick_test");
+      cout << "  eval..." << endl;
+      run_eval_experiment(runner, instances);
+      cout << "  ls_all..." << endl;
+      run_ls_all_strategies_experiment(runner, instances);
+      cout << "  ls_count_all..." << endl;
+      run_ls_all_strategies_count_experiment(runner, instances);
+      cout << "  vns_tables_all..." << endl;
+      run_vns_tables_all_strategies_experiment(runner, instances);
     }
     else {
       cerr << "Error: Unknown experiment type: " << experiment << endl;

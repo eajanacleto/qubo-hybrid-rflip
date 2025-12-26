@@ -111,6 +111,56 @@ void vns_best_improvement(const ubqp& Q, incumbent_solution<eval>& y_inc, incumb
   vns<eval, count, ls_strategy::best_improvement>(Q, y_inc, y, z, z2, r_max, r_step, iters, ls_iters, N, rng, basics, deltas);
 }
 
+/**
+ * @brief VNS with runtime-selected local search strategy via ls_dispatch.
+ *
+ * This version allows selecting the local search strategy at runtime without
+ * needing template specialization. It's more flexible but slightly slower due
+ * to the runtime dispatch overhead.
+ *
+ * @tparam eval Evaluation strategy
+ * @tparam count Whether to count algorithm choices
+ * @param ls_strat Local search strategy (runtime parameter)
+ */
+template <evaluation eval, bool count>
+void vns_runtime(const ubqp& Q, incumbent_solution<eval>& y_inc, incumbent_solution<eval>& y,
+         neighbor_solution& z, neighbor_solution& z2, size_t r_max, size_t r_step,
+         size_t iters, size_t ls_iters, std::unique_ptr<size_t[]>& N,
+         std::mt19937& rng, size_t& basics, size_t& deltas, ls_strategy ls_strat) {
+  for (size_t l = 1; l <= iters; l++) {
+    for (size_t r = 1; r <= r_max; r += r_step) {
+      // Copy incumbent to working solution
+      y.fy = y_inc.fy;
+      for (size_t i = 0; i < Q.n; i++) y.y[i] = y_inc.y[i];
+
+      if constexpr (eval != evaluation::basic) {
+        y.nx1 = y_inc.nx1;
+        y.wx01 = y_inc.wx01;
+        y.wx10 = y_inc.wx10;
+        for (size_t i = 0; i < Q.n; i++) y.x[i] = y_inc.x[i];
+        for (size_t i = 0; i < Q.n; i++) y.dx[i] = y_inc.dx[i];
+        for (size_t i = 0; i < y.wx01; i++) y.WX01[i] = y_inc.WX01[i];
+        for (size_t i = 0; i < y.wx10; i++) y.WX10[i] = y_inc.WX10[i];
+      }
+
+      // Shake: generate random neighbor with r flips
+      random_neighbor_solution(Q, y, z, r, N, rng);
+      evaluate_hybrid<eval, count>(Q, y, z, N, basics, deltas);
+      replace_incumbent(y, z);
+
+      // Local search on shaken solution using runtime dispatch
+      ls_dispatch<eval, count>(ls_strat, Q, y, z2, r, ls_iters, N, rng, basics, deltas);
+
+      // Move or not
+      if (y.fy < y_inc.fy) {
+        std::swap(y_inc, y);
+        r = 0;
+        l = 1;
+      }
+    }
+  }
+}
+
 }  // namespace qubo
 
 #endif  // QUBO_ALGORITHMS_VNS_HPP

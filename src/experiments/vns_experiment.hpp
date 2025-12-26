@@ -130,6 +130,61 @@ inline auto get_vns_table_experiments() {
   return get_vns_table_experiments_first_improvement();
 }
 
+/**
+ * @brief Performs a VNS experiment with runtime-selected local search strategy.
+ *
+ * Unlike vns_experiment which requires ls_strategy as a template parameter,
+ * this version accepts ls_strategy at runtime. This allows iterating over
+ * all strategies without creating separate template instantiations.
+ *
+ * @tparam eval Evaluation strategy to use
+ * @tparam count If true, count algorithm choices; if false, measure time
+ * @param Q UBQP instance
+ * @param params JSON parameters (includes ls_strategy field)
+ * @return JSON with results
+ */
+template <evaluation eval, bool count>
+json vns_experiment_runtime(const ubqp& Q, const json params) {
+  std::mt19937 rng;
+  size_t iters = params["iters"];
+  size_t ls_iters = params["ls_iters"];
+  size_t r_max = params["r_max"];
+  size_t r_step = params["r_step"];
+  ls_strategy ls_strat = static_cast<ls_strategy>(params.value("ls_strategy", 0));
+  size_t basics = 0, deltas = 0;
+
+  incumbent_solution<eval> y_inc(Q.n), y(Q.n);
+  randomize(Q, y_inc, rng);
+  neighbor_solution z(Q.n), z2(Q.n);
+
+  std::unique_ptr<size_t[]> N(new size_t[Q.n]());
+  std::iota(&N[0], &N[Q.n], 0);
+
+  if constexpr (count) {
+    vns_runtime<eval, count>(Q, y_inc, y, z, z2, r_max, r_step, iters, ls_iters, N, rng, basics, deltas, ls_strat);
+    return {{"basics", basics}, {"deltas", deltas}};
+  } else {
+    long dt = measure([&]() {
+      vns_runtime<eval, count>(Q, y_inc, y, z, z2, r_max, r_step, iters, ls_iters, N, rng, basics, deltas, ls_strat);
+    });
+    return {{"dt", dt}, {"fx", y_inc.fy}};
+  }
+}
+
+/**
+ * @brief Get VNS runtime experiments for tables (supports any ls_strategy via params).
+ *
+ * These experiments use runtime dispatch for local search strategy selection.
+ * The ls_strategy should be passed in the params JSON object.
+ */
+inline auto get_vns_table_experiments_runtime() {
+  return std::vector<std::pair<evaluation, std::function<json(const ubqp&, json)>>>{
+    {evaluation::basic, vns_experiment_runtime<evaluation::basic, false>},
+    {evaluation::rflip_rv, vns_experiment_runtime<evaluation::rflip_rv, false>},
+    {evaluation::s, vns_experiment_runtime<evaluation::s, false>},
+  };
+}
+
 }  // namespace qubo
 
 #endif  // QUBO_EXPERIMENTS_VNS_EXPERIMENT_HPP
