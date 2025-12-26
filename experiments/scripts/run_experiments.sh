@@ -13,7 +13,7 @@ set -e  # Parar em caso de erro
 #==============================================================================
 
 # Diretórios
-PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 OUTPUT_DIR="${PROJECT_DIR}/output"
 RESULTS_DIR="${OUTPUT_DIR}/results"
 FIGURES_DIR="${OUTPUT_DIR}/figures"
@@ -23,8 +23,8 @@ TABLES_DIR="${OUTPUT_DIR}/tables"
 EXECUTABLE="${PROJECT_DIR}/main.out"
 
 # Scripts Python
-GENFIGURES_SCRIPT="${PROJECT_DIR}/scripts/genfigures.py"
-GENTABLES_SCRIPT="${PROJECT_DIR}/scripts/gentables.py"
+GENFIGURES_SCRIPT="${PROJECT_DIR}/experiments/scripts/genfigures.py"
+GENTABLES_SCRIPT="${PROJECT_DIR}/experiments/scripts/gentables.py"
 
 # Arquivos de resultados
 RESULTS_EVAL="${RESULTS_DIR}/results_eval.json"

@@ -1,0 +1,85 @@
+{
+  "description": "Instance sets for UBQP experiments",
+  
+  "instance_sets": {
+    "eval": {
+      "description": "Instances for evaluation time experiments",
+      "instances": ["G54"]
+    },
+    
+    "ls_figures": {
+      "description": "Instances for local search figure generation",
+      "instances": ["bqp250.1", "bqp500.1", "G43", "G22"]
+    },
+    
+    "vns_figures": {
+      "description": "Instances for VNS figure generation",
+      "instances": ["bqp100.1", "bqp250.1", "bqp500.1", "G1"]
+    },
+    
+    "vns_tables_small": {
+      "description": "Small BQP instances (n=50)",
+      "instances": [
+        "bqp50.1", "bqp50.2", "bqp50.3", "bqp50.4", "bqp50.5",
+        "bqp50.6", "bqp50.7", "bqp50.8", "bqp50.9", "bqp50.10"
+      ]
+    },
+    
+    "vns_tables_medium": {
+      "description": "Medium BQP instances (n=100, 250)",
+      "instances": [
+        "bqp100.1", "bqp100.2", "bqp100.3", "bqp100.4", "bqp100.5",
+        "bqp100.6", "bqp100.7", "bqp100.8", "bqp100.9", "bqp100.10",
+        "bqp250.1", "bqp250.2", "bqp250.3", "bqp250.4", "bqp250.5",
+        "bqp250.6", "bqp250.7", "bqp250.8", "bqp250.9", "bqp250.10"
+      ]
+    },
+    
+    "vns_tables_large": {
+      "description": "Large BQP instances (n=500, 1000, 2500)",
+      "instances": [
+        "bqp500.1", "bqp500.2", "bqp500.3", "bqp500.4", "bqp500.5",
+        "bqp500.6", "bqp500.7", "bqp500.8", "bqp500.9", "bqp500.10",
+        "bqp1000.1", "bqp1000.2", "bqp1000.3", "bqp1000.4", "bqp1000.5",
+        "bqp1000.6", "bqp1000.7", "bqp1000.8", "bqp1000.9", "bqp1000.10",
+        "bqp2500.1", "bqp2500.2", "bqp2500.3", "bqp2500.4", "bqp2500.5",
+        "bqp2500.6", "bqp2500.7", "bqp2500.8", "bqp2500.9", "bqp2500.10"
+      ]
+    },
+    
+    "gset_small": {
+      "description": "Small Gset instances (n=800)",
+      "instances": [
+        "G1", "G2", "G3", "G4", "G5", "G6", "G7", "G8", "G9", "G10",
+        "G11", "G12", "G13", "G14", "G15", "G16", "G17", "G18", "G19", "G20", "G21"
+      ]
+    },
+    
+    "gset_medium": {
+      "description": "Medium Gset instances (n=1000, 2000)",
+      "instances": [
+        "G22", "G23", "G24", "G25", "G26", "G27", "G28", "G29", "G30",
+        "G31", "G32", "G33", "G34", "G35", "G36", "G37", "G38", "G39",
+        "G40", "G41", "G42", "G43", "G44", "G45", "G46", "G47"
+      ]
+    },
+    
+    "gset_large": {
+      "description": "Large Gset instances (n=3000, 5000)",
+      "instances": ["G51", "G52", "G53", "G54"]
+    },
+    
+    "vns_tables_all": {
+      "description": "All instances for VNS table generation",
+      "compose": [
+        "vns_tables_small", "vns_tables_medium", "vns_tables_large",
+        "gset_small", "gset_medium", "gset_large"
+      ]
+    },
+    
+    "quick_test": {
+      "description": "Quick test instances for validation",
+      "instances": ["bqp50.1", "bqp100.1", "G1"]
+    }
+  }
+}

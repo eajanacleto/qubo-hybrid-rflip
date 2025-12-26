@@ -6,9 +6,11 @@
 SRC_DIR     := src
 DATA_DIR    := data
 OUTPUT_DIR  := output
+EXP_DIR     := experiments
 FIGURES_DIR := $(OUTPUT_DIR)/figures
 RESULTS_DIR := $(OUTPUT_DIR)/results
-SCRIPTS_DIR := scripts
+SCRIPTS_DIR := $(EXP_DIR)/scripts
+CONFIG_DIR  := $(EXP_DIR)/config
 
 # Compiler settings
 CXX      := g++
@@ -21,7 +23,8 @@ SRC      := $(SRC_DIR)/main.cpp
 
 # Header files (for dependency tracking)
 CORE_HEADERS := $(wildcard $(SRC_DIR)/core/*.hpp)
-ALGO_HEADERS := $(wildcard $(SRC_DIR)/algorithms/*.hpp)
+ALGO_HEADERS := $(wildcard $(SRC_DIR)/algorithms/*.hpp) \
+                $(wildcard $(SRC_DIR)/algorithms/*/*.hpp)
 EXP_HEADERS  := $(wildcard $(SRC_DIR)/experiments/*.hpp)
 ALL_HEADERS  := $(CORE_HEADERS) $(ALGO_HEADERS) $(EXP_HEADERS) $(SRC_DIR)/json.hpp
 
@@ -75,6 +78,20 @@ figures:
 	@. .venv/bin/activate && cd $(FIGURES_DIR) && python ../../$(SCRIPTS_DIR)/genfigures.py ../results/$(RESULTS_FILE)
 
 # =============================================================================
+# Experiment scripts (convenience targets)
+# =============================================================================
+
+.PHONY: test-quick test-full experiments
+
+test-quick: $(TARGET)
+	@bash $(SCRIPTS_DIR)/run_quick_test.sh
+
+test-full: $(TARGET)
+	@bash $(SCRIPTS_DIR)/run_experiments.sh
+
+experiments: test-full
+
+# =============================================================================
 # Utility targets
 # =============================================================================
 
@@ -94,14 +111,22 @@ help:
 	@echo "Usage:"
 	@echo "  make              - Build the project"
 	@echo "  make setup        - Download dependencies and setup Python environment"
-	@echo "  make run EXP=ls   - Run experiment (ls, ls_count, vns_figures, vns_tables, eval)"
-	@echo "  make figures RESULTS_FILE=results.json - Generate figures from results"
+	@echo "  make run EXP=type - Run experiment directly"
+	@echo "                      Types: eval, ls, ls_count, vns_figures, vns_tables"
+	@echo "  make test-quick   - Run quick validation test (~2 min)"
+	@echo "  make test-full    - Run all experiments (may take hours)"
+	@echo "  make figures      - Generate figures from results"
 	@echo "  make clean        - Remove build artifacts"
-	@echo "  make distclean    - Remove all generated files (including dependencies)"
+	@echo "  make distclean    - Remove all generated files"
 	@echo "  make help         - Show this help message"
 	@echo ""
+	@echo "Project structure:"
+	@echo "  src/              - Source code (modular C++ headers)"
+	@echo "  experiments/      - Experiment configuration and scripts"
+	@echo "    config/         - JSON configuration files"
+	@echo "    scripts/        - Python and Bash scripts"
+	@echo "  output/           - Generated results and figures"
+	@echo "  data/             - Benchmark instances"
+	@echo ""
 	@echo "Examples:"
-	@echo "  make setup"
-	@echo "  make"
-	@echo "  make run EXP=ls"
-	@echo "  make figures RESULTS_FILE=results.json"
+	@echo "  make setup && make && make test-quick"

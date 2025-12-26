@@ -12,13 +12,13 @@ set -e
 # CONFIGURAÇÕES DE TESTE
 #==============================================================================
 
-PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 OUTPUT_DIR="${PROJECT_DIR}/output"
 RESULTS_DIR="${OUTPUT_DIR}/test_results"
 FIGURES_DIR="${OUTPUT_DIR}/test_figures"
 
 EXECUTABLE="${PROJECT_DIR}/main.out"
-GENFIGURES_SCRIPT="${PROJECT_DIR}/scripts/genfigures.py"
+GENFIGURES_SCRIPT="${PROJECT_DIR}/experiments/scripts/genfigures.py"
 
 # Timeouts curtos para teste (em segundos)
 TEST_TIMEOUT=30

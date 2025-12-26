@@ -1,0 +1,113 @@
+{
+  "description": "Experiment configurations for UBQP hybrid r-flip research",
+  
+  "experiments": {
+    "eval": {
+      "description": "Evaluation time comparison between strategies",
+      "type": "eval",
+      "instance_set": "eval",
+      "parameters": {
+        "iterations": 100,
+        "n1_divisions": 7,
+        "r_divisions": 100
+      },
+      "evaluation_strategies": ["all"]
+    },
+    
+    "ls": {
+      "description": "Local search time measurement",
+      "type": "ls",
+      "instance_set": "ls_figures",
+      "parameters": {
+        "r_divisions": 100,
+        "iterations_factor": 1.0
+      },
+      "evaluation_strategies": ["all"]
+    },
+    
+    "ls_count": {
+      "description": "Local search algorithm choice counting",
+      "type": "ls_count",
+      "instance_set": "ls_figures",
+      "parameters": {
+        "r_divisions": 100,
+        "iterations_factor": 1.0
+      },
+      "evaluation_strategies": ["hybrid_only"],
+      "parallel": true
+    },
+    
+    "vns_figures": {
+      "description": "VNS experiments for figure generation",
+      "type": "vns",
+      "instance_set": "vns_figures",
+      "parameters": {
+        "r_divisions": 100,
+        "r_step": 1,
+        "vns_iterations": 10,
+        "ls_iterations_factor": 1.0
+      },
+      "evaluation_strategies": ["all"]
+    },
+    
+    "vns_figures_count": {
+      "description": "VNS algorithm choice counting for figures",
+      "type": "vns_count",
+      "instance_set": "vns_figures",
+      "parameters": {
+        "r_divisions": 100,
+        "r_step": 1,
+        "vns_iterations": 10,
+        "ls_iterations_factor": 1.0
+      },
+      "evaluation_strategies": ["hybrid_only"],
+      "parallel": true
+    },
+    
+    "vns_tables": {
+      "description": "Comprehensive VNS benchmark for tables",
+      "type": "vns",
+      "instance_set": "vns_tables_all",
+      "parameters": {
+        "r_percentages": [30, 60, 90],
+        "r_step": 1,
+        "vns_iterations": 10,
+        "ls_iterations_factor": 1.0
+      },
+      "evaluation_strategies": ["basic", "rflip_rv", "s"],
+      "parallel": true
+    },
+    
+    "quick_test": {
+      "description": "Quick validation test",
+      "type": "vns",
+      "instance_set": "quick_test",
+      "parameters": {
+        "r_percentages": [30],
+        "r_step": 1,
+        "vns_iterations": 3,
+        "ls_iterations_factor": 0.5
+      },
+      "evaluation_strategies": ["basic", "s"],
+      "parallel": false
+    }
+  },
+  
+  "evaluation_strategy_sets": {
+    "all": [
+      "basic", "rflip_rv", "s", "a", "c", "m", "ac", "am", "cm", "acm"
+    ],
+    "hybrid_only": [
+      "s", "a", "c", "m", "ac", "am", "cm", "acm"
+    ],
+    "best_performers": [
+      "basic", "rflip_rv", "s", "acm"
+    ]
+  },
+  
+  "defaults": {
+    "random_seed": 42,
+    "output_dir": "output/results",
+    "figures_dir": "output/figures"
+  }
+}
