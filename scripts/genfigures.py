@@ -47,6 +47,13 @@ def create_figure(filename: str, options: List[str], *plots: Plot):
 with open(sys.argv[1]) as fp:
     FULL_DATA = json.load(fp)
 
+# Mudar para o diretório de output se especificado
+if len(sys.argv) > 2:
+    OUTPUT_DIR = sys.argv[2]
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    os.chdir(OUTPUT_DIR)
+    print(f"Gerando figuras em: {OUTPUT_DIR}")
+
 for (instance, n), data in groupby(
     lambda x: (x["params"]["instance"], x["params"]["n"]),
     [x for x in FULL_DATA if x["params"]["exp"] == "eval"],
