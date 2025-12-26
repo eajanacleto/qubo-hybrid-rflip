@@ -31,6 +31,7 @@ namespace qubo {
  *
  * @tparam eval Evaluation strategy to use
  * @tparam count If true, count algorithm choices; if false, measure time
+ * @tparam ls_strat Local search strategy to use (default: first_improvement)
  * @param Q UBQP instance
  * @param params JSON parameters:
  *   - iters: number of VNS iterations
@@ -39,7 +40,7 @@ namespace qubo {
  *   - r_step: neighborhood size increment
  * @return JSON with either {basics, deltas} (if count=true) or {dt, fx} (if count=false)
  */
-template <evaluation eval, bool count>
+template <evaluation eval, bool count, ls_strategy ls_strat = ls_strategy::first_improvement>
 json vns_experiment(const ubqp& Q, const json params) {
   std::mt19937 rng;
   size_t iters = params["iters"];
@@ -56,18 +57,18 @@ json vns_experiment(const ubqp& Q, const json params) {
   std::iota(&N[0], &N[Q.n], 0);
 
   if constexpr (count) {
-    vns<eval, count>(Q, y_inc, y, z, z2, r_max, r_step, iters, ls_iters, N, rng, basics, deltas);
+    vns<eval, count, ls_strat>(Q, y_inc, y, z, z2, r_max, r_step, iters, ls_iters, N, rng, basics, deltas);
     return {{"basics", basics}, {"deltas", deltas}};
   } else {
     long dt = measure([&]() {
-      vns<eval, count>(Q, y_inc, y, z, z2, r_max, r_step, iters, ls_iters, N, rng, basics, deltas);
+      vns<eval, count, ls_strat>(Q, y_inc, y, z, z2, r_max, r_step, iters, ls_iters, N, rng, basics, deltas);
     });
     return {{"dt", dt}, {"fx", y_inc.fy}};
   }
 }
 
 /**
- * @brief Get all VNS time experiment functions.
+ * @brief Get all VNS time experiment functions (first_improvement).
  */
 inline auto get_vns_time_experiments() {
   return std::vector<std::pair<evaluation, std::function<json(const ubqp&, json)>>>{
@@ -85,7 +86,7 @@ inline auto get_vns_time_experiments() {
 }
 
 /**
- * @brief Get all VNS counting experiment functions.
+ * @brief Get all VNS counting experiment functions (first_improvement).
  */
 inline auto get_vns_count_experiments() {
   return std::vector<std::pair<evaluation, std::function<json(const ubqp&, json)>>>{
@@ -101,14 +102,32 @@ inline auto get_vns_count_experiments() {
 }
 
 /**
- * @brief Get VNS experiments for table generation (subset of strategies).
+ * @brief Get VNS experiments for tables with first_improvement local search.
+ */
+inline auto get_vns_table_experiments_first_improvement() {
+  return std::vector<std::pair<evaluation, std::function<json(const ubqp&, json)>>>{
+    {evaluation::basic, vns_experiment<evaluation::basic, false, ls_strategy::first_improvement>},
+    {evaluation::rflip_rv, vns_experiment<evaluation::rflip_rv, false, ls_strategy::first_improvement>},
+    {evaluation::s, vns_experiment<evaluation::s, false, ls_strategy::first_improvement>},
+  };
+}
+
+/**
+ * @brief Get VNS experiments for tables with best_improvement local search.
+ */
+inline auto get_vns_table_experiments_best_improvement() {
+  return std::vector<std::pair<evaluation, std::function<json(const ubqp&, json)>>>{
+    {evaluation::basic, vns_experiment<evaluation::basic, false, ls_strategy::best_improvement>},
+    {evaluation::rflip_rv, vns_experiment<evaluation::rflip_rv, false, ls_strategy::best_improvement>},
+    {evaluation::s, vns_experiment<evaluation::s, false, ls_strategy::best_improvement>},
+  };
+}
+
+/**
+ * @brief Get VNS experiments for table generation (first_improvement, backward compat).
  */
 inline auto get_vns_table_experiments() {
-  return std::vector<std::pair<evaluation, std::function<json(const ubqp&, json)>>>{
-    {evaluation::basic, vns_experiment<evaluation::basic, false>},
-    {evaluation::rflip_rv, vns_experiment<evaluation::rflip_rv, false>},
-    {evaluation::s, vns_experiment<evaluation::s, false>},
-  };
+  return get_vns_table_experiments_first_improvement();
 }
 
 }  // namespace qubo

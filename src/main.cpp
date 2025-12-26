@@ -31,11 +31,13 @@
 #include "json.hpp"
 #include "core/evaluation.hpp"
 #include "core/ubqp.hpp"
+#include "algorithms/local_search/ls_strategy.hpp"
 #include "experiments/experiments.hpp"
 
 using nlohmann::json;
 using qubo::evaluation;
 using qubo::ubqp;
+using qubo::ls_strategy;
 using qubo::ExperimentRunner;
 using qubo::eval_experiment;
 using qubo::ls_experiment;
@@ -48,6 +50,8 @@ using qubo::get_all_ls_count_experiments;
 using qubo::get_vns_time_experiments;
 using qubo::get_vns_count_experiments;
 using qubo::get_vns_table_experiments;
+using qubo::get_vns_table_experiments_first_improvement;
+using qubo::get_vns_table_experiments_best_improvement;
 
 using std::async;
 using std::cout;
@@ -293,14 +297,24 @@ void run_vns_figures_count_experiment(ExperimentRunner& runner, const vector<str
   for (auto& f : futures) f.wait();
 }
 
-void run_vns_tables_experiment(ExperimentRunner& runner, const vector<string>& instances) {
+/**
+ * @brief Run VNS tables experiment with a specific local search strategy.
+ */
+template<typename GetExpFunc>
+void run_vns_tables_experiment_with_strategy(
+    ExperimentRunner& runner, 
+    const vector<string>& instances,
+    GetExpFunc get_experiments,
+    int ls_strategy_num,
+    const string& ls_strategy_name) {
+  
   for (const string& instance : instances) {
     for (size_t r_div : {30, 60, 90}) {
       vector<future<void>> futures;
       auto Q = make_shared<ubqp>(move(ubqp::load(instance)));
 
-      for (auto& p : get_vns_table_experiments()) {
-        futures.emplace_back(async([&runner, p, Q, instance, r_div]() {
+      for (auto& p : get_experiments()) {
+        futures.emplace_back(async([&runner, p, Q, instance, r_div, ls_strategy_num, &ls_strategy_name]() {
           json params;
           params["exp"] = "vns_tables";
           params["instance"] = instance;
@@ -310,6 +324,8 @@ void run_vns_tables_experiment(ExperimentRunner& runner, const vector<string>& i
           params["r_step"] = 1;
           params["iters"] = 10;
           params["ls_iters"] = Q->n;
+          params["ls_strategy"] = ls_strategy_num;
+          params["ls_strategy_name"] = ls_strategy_name;
           runner.run(p.second, *Q, params);
         }));
       }
@@ -317,6 +333,30 @@ void run_vns_tables_experiment(ExperimentRunner& runner, const vector<string>& i
       for (auto& f : futures) f.wait();
     }
   }
+}
+
+/**
+ * @brief Run VNS tables experiment for all LS strategies (first_improvement, best_improvement).
+ */
+void run_vns_tables_all_strategies_experiment(ExperimentRunner& runner, const vector<string>& instances) {
+  cout << "Running VNS tables with first_improvement..." << endl;
+  run_vns_tables_experiment_with_strategy(
+      runner, instances, get_vns_table_experiments_first_improvement, 
+      static_cast<int>(ls_strategy::first_improvement), "first_improvement");
+  
+  cout << "Running VNS tables with best_improvement..." << endl;
+  run_vns_tables_experiment_with_strategy(
+      runner, instances, get_vns_table_experiments_best_improvement,
+      static_cast<int>(ls_strategy::best_improvement), "best_improvement");
+}
+
+/**
+ * @brief Backward compatibility: run VNS tables with first_improvement only.
+ */
+void run_vns_tables_experiment(ExperimentRunner& runner, const vector<string>& instances) {
+  run_vns_tables_experiment_with_strategy(
+      runner, instances, get_vns_table_experiments_first_improvement,
+      static_cast<int>(ls_strategy::first_improvement), "first_improvement");
 }
 
 // Instance sets are now loaded from experiments/config/instances.json
@@ -335,16 +375,18 @@ void print_usage(const char* program_name) {
   cout << "  eval              - Evaluation time comparison" << endl;
   cout << "  ls                - Local search time (first_improvement only)" << endl;
   cout << "  ls_count          - Local search counting (first_improvement only)" << endl;
-  cout << "  ls_all            - Local search time (ALL strategies)" << endl;
-  cout << "  ls_count_all      - Local search counting (ALL strategies)" << endl;
+  cout << "  ls_all            - Local search time (ALL LS strategies)" << endl;
+  cout << "  ls_count_all      - Local search counting (ALL LS strategies)" << endl;
   cout << "  vns_figures       - VNS experiments for figures" << endl;
   cout << "  vns_figures_count - VNS algorithm choice counting" << endl;
-  cout << "  vns_tables        - VNS benchmark for tables" << endl;
+  cout << "  vns_tables        - VNS benchmark for tables (first_improvement only)" << endl;
+  cout << "  vns_tables_all    - VNS benchmark for tables (ALL LS strategies)" << endl;
   cout << endl;
   cout << "Examples:" << endl;
   cout << "  " << program_name << " output/results/eval.json eval" << endl;
   cout << "  " << program_name << " output/results/ls.json ls" << endl;
   cout << "  " << program_name << " output/results/ls_all.json ls_all" << endl;
+  cout << "  " << program_name << " output/results/vns_tables.json vns_tables_all" << endl;
 }
 
 int main(int argc, const char* argv[]) {
@@ -382,6 +424,9 @@ int main(int argc, const char* argv[]) {
     }
     else if (experiment == "vns_tables") {
       run_vns_tables_experiment(runner, load_instances("vns_tables_all"));
+    }
+    else if (experiment == "vns_tables_all") {
+      run_vns_tables_all_strategies_experiment(runner, load_instances("vns_tables_all"));
     }
     else {
       cerr << "Error: Unknown experiment type: " << experiment << endl;

@@ -23,7 +23,7 @@
 namespace qubo {
 
 /**
- * @brief Performs Variable Neighborhood Search.
+ * @brief Performs Variable Neighborhood Search with compile-time local search strategy.
  *
  * VNS explores increasingly larger neighborhoods to escape local minima.
  * After each local search, if no improvement is found, the neighborhood
@@ -31,6 +31,7 @@ namespace qubo {
  *
  * @tparam eval Evaluation strategy
  * @tparam count Whether to count algorithm choices
+ * @tparam ls_strat Local search strategy to use (default: first_improvement)
  * @param Q UBQP instance
  * @param y_inc Best incumbent solution (input/output)
  * @param y Working solution (workspace)
@@ -45,7 +46,7 @@ namespace qubo {
  * @param basics Counter for basic evaluations
  * @param deltas Counter for delta evaluations
  */
-template <evaluation eval, bool count>
+template <evaluation eval, bool count, ls_strategy ls_strat = ls_strategy::first_improvement>
 void vns(const ubqp& Q, incumbent_solution<eval>& y_inc, incumbent_solution<eval>& y,
          neighbor_solution& z, neighbor_solution& z2, size_t r_max, size_t r_step,
          size_t iters, size_t ls_iters, std::unique_ptr<size_t[]>& N,
@@ -71,8 +72,12 @@ void vns(const ubqp& Q, incumbent_solution<eval>& y_inc, incumbent_solution<eval
       evaluate_hybrid<eval, count>(Q, y, z, N, basics, deltas);
       replace_incumbent(y, z);
 
-      // Local search on shaken solution
-      ls<eval, count>(Q, y, z2, r, ls_iters, N, rng, basics, deltas);
+      // Local search on shaken solution using the specified strategy
+      if constexpr (ls_strat == ls_strategy::first_improvement) {
+        ls_first_improvement<eval, count>(Q, y, z2, r, ls_iters, N, rng, basics, deltas);
+      } else if constexpr (ls_strat == ls_strategy::best_improvement) {
+        ls_best_improvement<eval, count>(Q, y, z2, r, ls_iters, N, rng, basics, deltas);
+      }
 
       // Move or not
       if (y.fy < y_inc.fy) {
@@ -82,6 +87,28 @@ void vns(const ubqp& Q, incumbent_solution<eval>& y_inc, incumbent_solution<eval
       }
     }
   }
+}
+
+/**
+ * @brief Backward compatibility: VNS with first_improvement (default behavior).
+ */
+template <evaluation eval, bool count>
+void vns_first_improvement(const ubqp& Q, incumbent_solution<eval>& y_inc, incumbent_solution<eval>& y,
+         neighbor_solution& z, neighbor_solution& z2, size_t r_max, size_t r_step,
+         size_t iters, size_t ls_iters, std::unique_ptr<size_t[]>& N,
+         std::mt19937& rng, size_t& basics, size_t& deltas) {
+  vns<eval, count, ls_strategy::first_improvement>(Q, y_inc, y, z, z2, r_max, r_step, iters, ls_iters, N, rng, basics, deltas);
+}
+
+/**
+ * @brief VNS with best_improvement local search.
+ */
+template <evaluation eval, bool count>
+void vns_best_improvement(const ubqp& Q, incumbent_solution<eval>& y_inc, incumbent_solution<eval>& y,
+         neighbor_solution& z, neighbor_solution& z2, size_t r_max, size_t r_step,
+         size_t iters, size_t ls_iters, std::unique_ptr<size_t[]>& N,
+         std::mt19937& rng, size_t& basics, size_t& deltas) {
+  vns<eval, count, ls_strategy::best_improvement>(Q, y_inc, y, z, z2, r_max, r_step, iters, ls_iters, N, rng, basics, deltas);
 }
 
 }  // namespace qubo
