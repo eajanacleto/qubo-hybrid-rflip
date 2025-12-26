@@ -2,136 +2,138 @@
   "description": "Experiment configurations for UBQP hybrid r-flip research",
   
   "experiments": {
-    "eval": {
+    "quick_test": {
+      "description": "Quick validation test (small instances, fast)",
+      "algorithm": "vns_tables_all",
+      "instance_set": "quick_test",
+      "timeout": 120,
+      "generate_figures": false,
+      "generate_tables": true
+    },
+    
+    "eval_benchmark": {
       "description": "Evaluation time comparison between strategies",
-      "type": "eval",
+      "algorithm": "eval",
       "instance_set": "eval",
-      "parameters": {
-        "iterations": 100,
-        "n1_divisions": 7,
-        "r_divisions": 100
-      },
-      "evaluation_strategies": ["all"]
+      "timeout": 3600,
+      "generate_figures": true,
+      "generate_tables": false
     },
     
-    "ls": {
-      "description": "Local search time measurement",
-      "type": "ls",
+    "ls_figures": {
+      "description": "Local search experiments for figure generation",
+      "algorithm": "ls_all",
       "instance_set": "ls_figures",
-      "parameters": {
-        "r_divisions": 100,
-        "iterations_factor": 1.0
-      },
-      "evaluation_strategies": ["all"]
+      "timeout": 3600,
+      "generate_figures": true,
+      "generate_tables": false
     },
     
-    "ls_count": {
-      "description": "Local search algorithm choice counting",
-      "type": "ls_count",
+    "ls_count_figures": {
+      "description": "Local search counting for figure generation",
+      "algorithm": "ls_count_all",
       "instance_set": "ls_figures",
-      "parameters": {
-        "r_divisions": 100,
-        "iterations_factor": 1.0
-      },
-      "evaluation_strategies": ["hybrid_only"],
-      "parallel": true
+      "timeout": 3600,
+      "generate_figures": true,
+      "generate_tables": false
     },
     
     "vns_figures": {
       "description": "VNS experiments for figure generation",
-      "type": "vns",
+      "algorithm": "vns_figures",
       "instance_set": "vns_figures",
-      "parameters": {
-        "r_divisions": 100,
-        "r_step": 1,
-        "vns_iterations": 10,
-        "ls_iterations_factor": 1.0
-      },
-      "evaluation_strategies": ["all"]
+      "timeout": 7200,
+      "generate_figures": true,
+      "generate_tables": false
     },
     
-    "vns_figures_count": {
-      "description": "VNS algorithm choice counting for figures",
-      "type": "vns_count",
+    "vns_count_figures": {
+      "description": "VNS counting experiments for figure generation",
+      "algorithm": "vns_figures_count",
       "instance_set": "vns_figures",
-      "parameters": {
-        "r_divisions": 100,
-        "r_step": 1,
-        "vns_iterations": 10,
-        "ls_iterations_factor": 1.0
-      },
-      "evaluation_strategies": ["hybrid_only"],
-      "parallel": true
+      "timeout": 7200,
+      "generate_figures": true,
+      "generate_tables": false
     },
     
-    "vns_tables": {
-      "description": "Comprehensive VNS benchmark for tables",
-      "type": "vns",
+    "vns_tables_small": {
+      "description": "VNS benchmark - small instances only (n=50)",
+      "algorithm": "vns_tables_all",
+      "instance_set": "vns_tables_small",
+      "timeout": 3600,
+      "generate_figures": false,
+      "generate_tables": true
+    },
+    
+    "vns_tables_medium": {
+      "description": "VNS benchmark - medium instances (n=100, 250)",
+      "algorithm": "vns_tables_all",
+      "instance_set": "vns_tables_medium",
+      "timeout": 14400,
+      "generate_figures": false,
+      "generate_tables": true
+    },
+    
+    "vns_tables_large": {
+      "description": "VNS benchmark - large instances (n=500, 1000, 2500)",
+      "algorithm": "vns_tables_all",
+      "instance_set": "vns_tables_large",
+      "timeout": 86400,
+      "generate_figures": false,
+      "generate_tables": true
+    },
+    
+    "vns_tables_full": {
+      "description": "Complete VNS benchmark - ALL instances",
+      "algorithm": "vns_tables_all",
       "instance_set": "vns_tables_all",
-      "parameters": {
-        "r_percentages": [30, 60, 90],
-        "r_step": 1,
-        "vns_iterations": 10,
-        "ls_iterations_factor": 1.0
-      },
-      "evaluation_strategies": ["basic", "rflip_rv", "s"],
-      "parallel": true
+      "timeout": 0,
+      "generate_figures": false,
+      "generate_tables": true
     },
     
-    "quick_test": {
-      "description": "Quick validation test",
-      "type": "vns",
-      "instance_set": "quick_test",
-      "parameters": {
-        "r_percentages": [30],
-        "r_step": 1,
-        "vns_iterations": 3,
-        "ls_iterations_factor": 0.5
-      },
-      "evaluation_strategies": ["basic", "s"],
-      "parallel": false
+    "gset_benchmark": {
+      "description": "VNS benchmark on Gset instances",
+      "algorithm": "vns_tables_all",
+      "instance_set": "gset_small",
+      "timeout": 14400,
+      "generate_figures": false,
+      "generate_tables": true
+    },
+    
+    "full_pipeline": {
+      "description": "Complete experiment pipeline (all experiments)",
+      "steps": [
+        "eval_benchmark",
+        "ls_figures",
+        "ls_count_figures",
+        "vns_figures",
+        "vns_count_figures",
+        "vns_tables_full"
+      ],
+      "timeout": 0,
+      "generate_figures": true,
+      "generate_tables": true
     }
-  },
-  
-  "evaluation_strategy_sets": {
-    "all": [
-      "basic", "rflip_rv", "s", "a", "c", "m", "ac", "am", "cm", "acm"
-    ],
-    "hybrid_only": [
-      "s", "a", "c", "m", "ac", "am", "cm", "acm"
-    ],
-    "best_performers": [
-      "basic", "rflip_rv", "s", "acm"
-    ]
   },
   
   "runtime": {
-    "max_threads": 4,
-    "timeouts": {
-      "eval": 60,
-      "ls": 60,
-      "ls_count": 60,
-      "ls_all": 60,
-      "ls_count_all": 60,
-      "vns_figures": 60,
-      "vns_figures_count": 60,
-      "vns_tables": 60
-    },
-    "enabled_experiments": {
-      "eval": true,
-      "ls": true,
-      "ls_count": true,
-      "ls_all": true,
-      "ls_count_all": true,
-      "vns_figures": true,
-      "vns_figures_count": true,
-      "vns_tables": true
-    }
+    "max_threads": 0,
+    "default_timeout": 3600,
+    "output_dir": "output/results",
+    "figures_dir": "output/figures",
+    "tables_dir": "output/tables"
   },
   
-  "defaults": {
-    "random_seed": 42,
-    "output_dir": "output/results",
-    "figures_dir": "output/figures"
+  "algorithms": {
+    "eval": "Evaluation time comparison",
+    "ls": "Local search (first_improvement)",
+    "ls_count": "Local search counting (first_improvement)",
+    "ls_all": "Local search (ALL strategies)",
+    "ls_count_all": "Local search counting (ALL strategies)",
+    "vns_figures": "VNS time experiments",
+    "vns_figures_count": "VNS counting experiments",
+    "vns_tables": "VNS benchmark (first_improvement)",
+    "vns_tables_all": "VNS benchmark (ALL LS strategies)"
   }
 }

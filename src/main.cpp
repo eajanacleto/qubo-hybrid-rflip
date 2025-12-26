@@ -397,7 +397,7 @@ void print_usage(const char* program_name) {
   cout << "UBQP Hybrid R-Flip Experiments" << endl;
   cout << "==============================" << endl;
   cout << endl;
-  cout << "Usage: " << program_name << " <results_file.json> <experiment_type>" << endl;
+  cout << "Usage: " << program_name << " <results_file.json> <experiment_type> [instance_set]" << endl;
   cout << endl;
   cout << "Experiment types:" << endl;
   cout << "  eval              - Evaluation time comparison" << endl;
@@ -409,13 +409,15 @@ void print_usage(const char* program_name) {
   cout << "  vns_figures_count - VNS algorithm choice counting" << endl;
   cout << "  vns_tables        - VNS benchmark for tables (first_improvement only)" << endl;
   cout << "  vns_tables_all    - VNS benchmark for tables (ALL LS strategies)" << endl;
-  cout << "  quick_test        - Quick validation (uses quick_test instance set)" << endl;
+  cout << endl;
+  cout << "Instance sets (defined in experiments/config/instances.json):" << endl;
+  cout << "  quick_test, eval, ls_figures, vns_figures, vns_tables_small," << endl;
+  cout << "  vns_tables_medium, vns_tables_large, vns_tables_all, etc." << endl;
   cout << endl;
   cout << "Examples:" << endl;
   cout << "  " << program_name << " output/results/eval.json eval" << endl;
-  cout << "  " << program_name << " output/results/ls.json ls" << endl;
-  cout << "  " << program_name << " output/results/ls_all.json ls_all" << endl;
-  cout << "  " << program_name << " output/results/vns_tables.json vns_tables_all" << endl;
+  cout << "  " << program_name << " output/results/ls.json ls_all quick_test" << endl;
+  cout << "  " << program_name << " output/results/vns.json vns_tables_all vns_tables_small" << endl;
 }
 
 int main(int argc, const char* argv[]) {
@@ -426,49 +428,44 @@ int main(int argc, const char* argv[]) {
 
   const string results_filename(argv[1]);
   const string experiment(argv[2]);
+  const string instance_set_override = (argc >= 4) ? argv[3] : "";
 
   ExperimentRunner runner(results_filename);
 
+  // Helper to get instances - uses override if provided, otherwise default for experiment
+  auto get_instances = [&](const string& default_set) {
+    const string& set_name = instance_set_override.empty() ? default_set : instance_set_override;
+    cout << "Using instance set: " << set_name << endl;
+    return load_instances(set_name);
+  };
+
   try {
     if (experiment == "eval") {
-      run_eval_experiment(runner, load_instances("eval"));
+      run_eval_experiment(runner, get_instances("eval"));
     } 
     else if (experiment == "ls") {
-      run_ls_experiment(runner, load_instances("ls_figures"));
+      run_ls_experiment(runner, get_instances("ls_figures"));
     }
     else if (experiment == "ls_count") {
-      run_ls_count_experiment(runner, load_instances("ls_figures"));
+      run_ls_count_experiment(runner, get_instances("ls_figures"));
     }
     else if (experiment == "ls_all") {
-      run_ls_all_strategies_experiment(runner, load_instances("ls_figures"));
+      run_ls_all_strategies_experiment(runner, get_instances("ls_figures"));
     }
     else if (experiment == "ls_count_all") {
-      run_ls_all_strategies_count_experiment(runner, load_instances("ls_figures"));
+      run_ls_all_strategies_count_experiment(runner, get_instances("ls_figures"));
     }
     else if (experiment == "vns_figures") {
-      run_vns_figures_experiment(runner, load_instances("vns_figures"));
+      run_vns_figures_experiment(runner, get_instances("vns_figures"));
     }
     else if (experiment == "vns_figures_count") {
-      run_vns_figures_count_experiment(runner, load_instances("vns_figures"));
+      run_vns_figures_count_experiment(runner, get_instances("vns_figures"));
     }
     else if (experiment == "vns_tables") {
-      run_vns_tables_experiment(runner, load_instances("vns_tables_all"));
+      run_vns_tables_experiment(runner, get_instances("vns_tables_all"));
     }
     else if (experiment == "vns_tables_all") {
-      run_vns_tables_all_strategies_experiment(runner, load_instances("vns_tables_all"));
-    }
-    else if (experiment == "quick_test") {
-      // Quick test runs all experiment types with quick_test instance set
-      cout << "Running quick test with quick_test instances..." << endl;
-      auto instances = load_instances("quick_test");
-      cout << "  eval..." << endl;
-      run_eval_experiment(runner, instances);
-      cout << "  ls_all..." << endl;
-      run_ls_all_strategies_experiment(runner, instances);
-      cout << "  ls_count_all..." << endl;
-      run_ls_all_strategies_count_experiment(runner, instances);
-      cout << "  vns_tables_all..." << endl;
-      run_vns_tables_all_strategies_experiment(runner, instances);
+      run_vns_tables_all_strategies_experiment(runner, get_instances("vns_tables_all"));
     }
     else {
       cerr << "Error: Unknown experiment type: " << experiment << endl;
