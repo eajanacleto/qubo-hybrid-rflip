@@ -22,6 +22,7 @@ GENFIGURES_SCRIPT="${PROJECT_DIR}/experiments/scripts/genfigures.py"
 
 # Timeouts curtos para teste (em segundos)
 TEST_TIMEOUT=30
+TABLES_TIMEOUT=20
 
 #==============================================================================
 # CORES E FUNÇÕES
@@ -144,6 +145,20 @@ else
 fi
 
 #------------------------------------------------------------------------------
+# Teste: vns_tables
+#------------------------------------------------------------------------------
+log_section "Teste: vns_tables"
+
+timeout $TABLES_TIMEOUT "$EXECUTABLE" "$RESULTS_DIR/test_tables.json" "vns_tables" 2>&1 | tail -5 || true
+
+if [ -f "$RESULTS_DIR/test_tables.json" ]; then
+    LINES=$(wc -l < "$RESULTS_DIR/test_tables.json")
+    log_success "vns_tables: ${LINES} linhas geradas"
+else
+    log_warning "vns_tables: arquivo não gerado (timeout?)"
+fi
+
+#------------------------------------------------------------------------------
 # Mesclar resultados
 #------------------------------------------------------------------------------
 log_section "Mesclando resultados"
@@ -187,6 +202,29 @@ python3 "$GENFIGURES_SCRIPT" "$RESULTS_DIR/test_complete.json" "$FIGURES_DIR/" 2
 
 # Limpar arquivos temporários
 rm -f "$FIGURES_DIR"/*.aux "$FIGURES_DIR"/*.dvi "$FIGURES_DIR"/*.log 2>/dev/null || true
+
+#------------------------------------------------------------------------------
+# Gerar tabelas
+#------------------------------------------------------------------------------
+log_section "Gerando tabelas"
+
+GENTABLES_SCRIPT="${PROJECT_DIR}/experiments/scripts/gentables.py"
+TABLES_DIR="${FIGURES_DIR}"
+
+if [ -f "$GENTABLES_SCRIPT" ] && [ -f "$RESULTS_DIR/test_complete.json" ]; then
+    python3 "$GENTABLES_SCRIPT" "$RESULTS_DIR/test_complete.json" > "$TABLES_DIR/tables_output.txt" 2>&1 || true
+    
+    if [ -s "$TABLES_DIR/tables_output.txt" ]; then
+        TABLE_LINES=$(wc -l < "$TABLES_DIR/tables_output.txt")
+        log_success "Tabelas geradas: ${TABLE_LINES} linhas em tables_output.txt"
+        echo "Preview das tabelas:"
+        head -5 "$TABLES_DIR/tables_output.txt" || true
+    else
+        log_warning "Nenhuma tabela gerada (dados insuficientes para vns_tables)"
+    fi
+else
+    log_warning "Script de tabelas ou dados não disponíveis"
+fi
 
 #------------------------------------------------------------------------------
 # Resumo

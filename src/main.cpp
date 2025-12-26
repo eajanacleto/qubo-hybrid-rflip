@@ -43,6 +43,8 @@ using qubo::vns_experiment;
 using qubo::get_eval_experiments;
 using qubo::get_ls_time_experiments;
 using qubo::get_ls_count_experiments;
+using qubo::get_all_ls_time_experiments;
+using qubo::get_all_ls_count_experiments;
 using qubo::get_vns_time_experiments;
 using qubo::get_vns_count_experiments;
 using qubo::get_vns_table_experiments;
@@ -145,6 +147,37 @@ void run_ls_experiment(ExperimentRunner& runner, const vector<string>& instances
              {"instance", instance},
              {"n", Q.n},
              {"eval", static_cast<int>(eval)},
+             {"ls_strategy", 0},  // first_improvement
+             {"r", r},
+             {"iters", Q.n}});
+      }
+    }
+  }
+}
+
+/**
+ * @brief Run LS experiments with ALL local search strategies.
+ * 
+ * This runs experiments comparing different evaluation strategies
+ * across all available local search strategies (first_improvement,
+ * best_improvement, etc.)
+ */
+void run_ls_all_strategies_experiment(ExperimentRunner& runner, const vector<string>& instances) {
+  using qubo::ls_strategy;
+  
+  for (const string& instance : instances) {
+    ubqp Q = ubqp::load(instance);
+    size_t r_step = max(Q.n / 100, size_t(1));
+
+    for (const auto& [ls_strat, eval, experiment_fn] : get_all_ls_time_experiments()) {
+      for (size_t r = r_step; r <= Q.n; r += r_step) {
+        runner.run(experiment_fn, Q,
+            {{"exp", "ls_all"},
+             {"instance", instance},
+             {"n", Q.n},
+             {"eval", static_cast<int>(eval)},
+             {"ls_strategy", static_cast<int>(ls_strat)},
+             {"ls_strategy_name", qubo::ls_strategy_name(ls_strat)},
              {"r", r},
              {"iters", Q.n}});
       }
@@ -167,9 +200,42 @@ void run_ls_count_experiment(ExperimentRunner& runner, const vector<string>& ins
           params["instance"] = instance;
           params["n"] = Q->n;
           params["eval"] = static_cast<int>(p.first);
+          params["ls_strategy"] = 0;  // first_improvement
           params["r"] = r;
           params["iters"] = Q->n;
           runner.run(p.second, *Q, params);
+        }));
+      }
+    }
+  }
+
+  for (auto& f : futures) f.wait();
+}
+
+/**
+ * @brief Run LS count experiments with ALL local search strategies.
+ */
+void run_ls_all_strategies_count_experiment(ExperimentRunner& runner, const vector<string>& instances) {
+  using qubo::ls_strategy;
+  vector<future<void>> futures;
+
+  for (const string& instance : instances) {
+    auto Q = make_shared<ubqp>(move(ubqp::load(instance)));
+    size_t r_step = max(Q->n / 100, size_t(1));
+
+    for (auto [ls_strat, eval, fn] : get_all_ls_count_experiments()) {
+      for (size_t r = r_step; r <= Q->n; r += r_step) {
+        futures.emplace_back(async([&runner, fn, Q, instance, r, eval, ls_strat]() {
+          json params;
+          params["exp"] = "ls_count_all";
+          params["instance"] = instance;
+          params["n"] = Q->n;
+          params["eval"] = static_cast<int>(eval);
+          params["ls_strategy"] = static_cast<int>(ls_strat);
+          params["ls_strategy_name"] = qubo::ls_strategy_name(ls_strat);
+          params["r"] = r;
+          params["iters"] = Q->n;
+          runner.run(fn, *Q, params);
         }));
       }
     }
@@ -267,8 +333,10 @@ void print_usage(const char* program_name) {
   cout << endl;
   cout << "Experiment types:" << endl;
   cout << "  eval              - Evaluation time comparison" << endl;
-  cout << "  ls                - Local search time measurement" << endl;
-  cout << "  ls_count          - Local search algorithm choice counting" << endl;
+  cout << "  ls                - Local search time (first_improvement only)" << endl;
+  cout << "  ls_count          - Local search counting (first_improvement only)" << endl;
+  cout << "  ls_all            - Local search time (ALL strategies)" << endl;
+  cout << "  ls_count_all      - Local search counting (ALL strategies)" << endl;
   cout << "  vns_figures       - VNS experiments for figures" << endl;
   cout << "  vns_figures_count - VNS algorithm choice counting" << endl;
   cout << "  vns_tables        - VNS benchmark for tables" << endl;
@@ -276,6 +344,7 @@ void print_usage(const char* program_name) {
   cout << "Examples:" << endl;
   cout << "  " << program_name << " output/results/eval.json eval" << endl;
   cout << "  " << program_name << " output/results/ls.json ls" << endl;
+  cout << "  " << program_name << " output/results/ls_all.json ls_all" << endl;
 }
 
 int main(int argc, const char* argv[]) {
@@ -298,6 +367,12 @@ int main(int argc, const char* argv[]) {
     }
     else if (experiment == "ls_count") {
       run_ls_count_experiment(runner, load_instances("ls_figures"));
+    }
+    else if (experiment == "ls_all") {
+      run_ls_all_strategies_experiment(runner, load_instances("ls_figures"));
+    }
+    else if (experiment == "ls_count_all") {
+      run_ls_all_strategies_count_experiment(runner, load_instances("ls_figures"));
     }
     else if (experiment == "vns_figures") {
       run_vns_figures_experiment(runner, load_instances("vns_figures"));
