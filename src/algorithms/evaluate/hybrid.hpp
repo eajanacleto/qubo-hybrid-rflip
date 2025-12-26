@@ -34,8 +34,14 @@ namespace qubo {
  * @param deltas Counter for delta evaluations (output if count=true)
  */
 template <evaluation eval, bool count>
-void evaluate_hybrid(const ubqp& Q, incumbent_solution<eval>& y, neighbor_solution& z,
-                     const std::unique_ptr<size_t[]>& N, size_t& basics, size_t& deltas) {
+void evaluate_hybrid(
+        const ubqp& Q, 
+        incumbent_solution<eval>& y, 
+        neighbor_solution& z,
+        const std::unique_ptr<size_t[]>& N, 
+        size_t& basics, 
+        size_t& deltas
+    ){
   size_t r = z.r01 + z.r10;
   size_t basic_ops = 0, delta_ops = 0;
 

@@ -31,8 +31,12 @@ namespace qubo {
  * @param N Permutation array (first r elements are the flipped indices)
  */
 template <evaluation eval>
-void evaluate_basic(const ubqp& Q, const incumbent_solution<eval>& y, neighbor_solution& z,
-                    const std::unique_ptr<size_t[]>& N) {
+void evaluate_basic(
+        const ubqp& Q, 
+        const incumbent_solution<eval>& y, 
+        neighbor_solution& z,
+        const std::unique_ptr<size_t[]>& N
+    ) {
   // Build list of non-zero components in neighbor
   z.n1z = 0;
   for (size_t k = 0; k < z.r01; k++) {

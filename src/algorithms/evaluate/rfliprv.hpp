@@ -28,7 +28,11 @@ namespace qubo {
  * @param z Neighbor solution (output: fz)
  */
 template <evaluation eval>
-void evaluate_rfliprv(const ubqp& Q, const incumbent_solution<eval>& y, neighbor_solution& z) {
+void evaluate_rfliprv(
+        const ubqp& Q, 
+        const incumbent_solution<eval>& y, 
+        neighbor_solution& z
+    ) {
   static_assert(eval != evaluation::basic);
 
   z.fz = y.fy;
