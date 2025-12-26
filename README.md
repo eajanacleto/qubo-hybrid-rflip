@@ -11,10 +11,22 @@ qubo-hybrid-rflip-experiments/
 ├── .gitignore
 │
 ├── src/                  # Source code
-│   └── main.cpp          # Main C++ implementation
-│
-├── include/              # Header files
-│   └── json.hpp          # nlohmann/json (auto-downloaded)
+│   ├── main.cpp          # Main entry point
+│   ├── json.hpp          # nlohmann/json (auto-downloaded)
+│   │
+│   ├── core/             # Core data structures
+│   │   ├── ubqp.hpp      # UBQP problem definition
+│   │   ├── evaluation.hpp # Evaluation strategy enum
+│   │   ├── solution.hpp  # Solution data structures
+│   │   └── utils.hpp     # Utility functions
+│   │
+│   ├── algorithms/       # Algorithm implementations
+│   │   ├── evaluate.hpp  # Evaluation algorithms
+│   │   ├── local_search.hpp # Local Search
+│   │   └── vns.hpp       # Variable Neighborhood Search
+│   │
+│   └── experiments/      # Experiment definitions
+│       └── experiments.hpp # Experiment functions
 │
 ├── scripts/              # Python scripts
 │   ├── genfigures.py     # Generate LaTeX figures
@@ -26,14 +38,29 @@ qubo-hybrid-rflip-experiments/
 │       ├── bqp*.txt      # OR-Library BQP instances
 │       └── G*            # Gset MaxCut instances
 │
-├── results/              # Experiment results (JSON)
-│
 ├── output/               # Generated output
+│   ├── results/          # Experiment results (JSON)
 │   └── figures/          # LaTeX figures (.tex, .eps, .pdf)
 │
 └── docs/                 # Documentation
     └── analysis/         # Analysis reports
 ```
+
+## Module Overview
+
+### Core (`src/core/`)
+- **ubqp.hpp**: UBQP problem structure with instance loaders for BQP and MaxCut formats
+- **evaluation.hpp**: Enumeration of 10 evaluation strategies (basic, rflip_rv, s, a, c, m, ac, am, cm, acm)
+- **solution.hpp**: Template-based incumbent and neighbor solution structures
+- **utils.hpp**: Timing utilities for performance measurement
+
+### Algorithms (`src/algorithms/`)
+- **evaluate.hpp**: Evaluation algorithms including O(n²) basic and O(r²) delta evaluation
+- **local_search.hpp**: Stochastic local search with r-flip neighborhood
+- **vns.hpp**: Variable Neighborhood Search metaheuristic
+
+### Experiments (`src/experiments/`)
+- **experiments.hpp**: Experiment functions for benchmarking evaluation strategies
 
 ## Prerequisites
 
@@ -78,12 +105,12 @@ make figures RESULTS_FILE=results.json
 
 | ID | Name | Description |
 |----|------|-------------|
-| 0 | B (Basic) | Baseline evaluation |
-| 1 | RV | r-flip with reevaluation vector |
-| 2 | S | Strategy S |
-| 3 | A | Strategy A |
-| 4 | C | Strategy C |
-| 5 | M | Strategy M |
+| 0 | B (Basic) | Baseline O(n²) evaluation |
+| 1 | RV | r-flip with reevaluation vector O(r²) |
+| 2 | S | Hybrid strategy S (size-based) |
+| 3 | A | Hybrid strategy A (additions-based) |
+| 4 | C | Hybrid strategy C (cache-based) |
+| 5 | M | Hybrid strategy M (multiplications-based) |
 | 6 | AC | Combined A+C |
 | 7 | AM | Combined A+M |
 | 8 | CM | Combined C+M |
@@ -93,7 +120,7 @@ make figures RESULTS_FILE=results.json
 
 ```bash
 # Run experiment directly
-./main.out results/results.json ls
+./main.out output/results/results.json ls
 
 # Generate figures manually
 source .venv/bin/activate

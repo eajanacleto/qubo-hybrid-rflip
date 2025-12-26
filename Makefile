@@ -4,7 +4,6 @@
 
 # Directories
 SRC_DIR     := src
-INCLUDE_DIR := include
 DATA_DIR    := data
 OUTPUT_DIR  := output
 FIGURES_DIR := $(OUTPUT_DIR)/figures
@@ -19,7 +18,12 @@ LDFLAGS  := -s
 # Files
 TARGET   := main.out
 SRC      := $(SRC_DIR)/main.cpp
-JSON_HPP := $(INCLUDE_DIR)/json.hpp
+
+# Header files (for dependency tracking)
+CORE_HEADERS := $(wildcard $(SRC_DIR)/core/*.hpp)
+ALGO_HEADERS := $(wildcard $(SRC_DIR)/algorithms/*.hpp)
+EXP_HEADERS  := $(wildcard $(SRC_DIR)/experiments/*.hpp)
+ALL_HEADERS  := $(CORE_HEADERS) $(ALGO_HEADERS) $(EXP_HEADERS) $(SRC_DIR)/json.hpp
 
 # =============================================================================
 # Main targets
@@ -29,17 +33,16 @@ JSON_HPP := $(INCLUDE_DIR)/json.hpp
 
 all: $(TARGET)
 
-$(TARGET): $(SRC) $(JSON_HPP) Makefile | $(DATA_DIR)/instances
-	$(CXX) $(CXXFLAGS) -I$(INCLUDE_DIR) $(SRC) $(LDFLAGS) -o $(TARGET)
+$(TARGET): $(SRC) $(ALL_HEADERS) Makefile | $(DATA_DIR)/instances
+	$(CXX) $(CXXFLAGS) -I$(SRC_DIR) $(SRC) $(LDFLAGS) -o $(TARGET)
 
 # =============================================================================
 # Dependencies
 # =============================================================================
 
-$(JSON_HPP):
-	@mkdir -p $(INCLUDE_DIR)
+$(SRC_DIR)/json.hpp:
 	@echo "Downloading json.hpp..."
-	curl -fLo $(JSON_HPP) https://raw.githubusercontent.com/nlohmann/json/develop/single_include/nlohmann/json.hpp
+	curl -fLo $(SRC_DIR)/json.hpp https://raw.githubusercontent.com/nlohmann/json/develop/single_include/nlohmann/json.hpp
 
 $(DATA_DIR)/instances:
 	@mkdir -p $(DATA_DIR)/instances
@@ -53,7 +56,7 @@ $(DATA_DIR)/instances:
 # Setup & Run
 # =============================================================================
 
-setup: $(JSON_HPP) $(DATA_DIR)/instances
+setup: $(SRC_DIR)/json.hpp $(DATA_DIR)/instances
 	@echo "Setting up Python virtual environment..."
 	@test -d .venv || python3 -m venv .venv
 	@. .venv/bin/activate && pip install -q pylatex
@@ -80,7 +83,7 @@ clean:
 	rm -f $(FIGURES_DIR)/*.aux $(FIGURES_DIR)/*.dvi $(FIGURES_DIR)/*.log
 
 distclean: clean
-	rm -rf $(INCLUDE_DIR)/json.hpp
+	rm -rf $(SRC_DIR)/json.hpp
 	rm -rf $(DATA_DIR)/instances
 	rm -rf $(OUTPUT_DIR)
 	rm -rf .venv
