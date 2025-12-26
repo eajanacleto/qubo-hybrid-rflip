@@ -30,15 +30,22 @@ GENTABLES_SCRIPT="${PROJECT_DIR}/experiments/scripts/gentables.py"
 RESULTS_EVAL="${RESULTS_DIR}/results_eval.json"
 RESULTS_LS="${RESULTS_DIR}/results_ls.json"
 RESULTS_LS_COUNT="${RESULTS_DIR}/results_ls_count.json"
+RESULTS_LS_ALL="${RESULTS_DIR}/results_ls_all.json"
+RESULTS_LS_COUNT_ALL="${RESULTS_DIR}/results_ls_count_all.json"
 RESULTS_VNS="${RESULTS_DIR}/results_vns.json"
 RESULTS_VNS_COUNT="${RESULTS_DIR}/results_vns_count.json"
 RESULTS_TABLES="${RESULTS_DIR}/results_tables.json"
 RESULTS_COMPLETE="${RESULTS_DIR}/results_complete.json"
 
+# Diretório para resultados separados por estratégia
+RESULTS_BY_STRATEGY="${RESULTS_DIR}/by_strategy"
+
 # Timeouts (em segundos) - 0 = sem timeout
 TIMEOUT_EVAL=0          # Experimento de avaliação
 TIMEOUT_LS=0            # Local Search
 TIMEOUT_LS_COUNT=0      # Local Search com contagem
+TIMEOUT_LS_ALL=0        # LS todas estratégias
+TIMEOUT_LS_COUNT_ALL=0  # LS count todas estratégias
 TIMEOUT_VNS=0           # VNS para figuras
 TIMEOUT_VNS_COUNT=0     # VNS com contagem
 TIMEOUT_TABLES=0        # VNS para tabelas (mais longo)
@@ -47,9 +54,14 @@ TIMEOUT_TABLES=0        # VNS para tabelas (mais longo)
 RUN_EVAL=1
 RUN_LS=1
 RUN_LS_COUNT=1
+RUN_LS_ALL=0            # Todas estratégias de LS (desativado por padrão)
+RUN_LS_COUNT_ALL=0      # Contagem todas estratégias (desativado por padrão)
 RUN_VNS=1
 RUN_VNS_COUNT=1
 RUN_TABLES=0            # Desativado por padrão (muito demorado)
+
+# Separar resultados por estratégia (requer ls_all ou ls_count_all)
+SPLIT_BY_STRATEGY=1
 
 # Geração de figuras e tabelas
 GENERATE_FIGURES=1
@@ -221,6 +233,14 @@ if [ "$RUN_LS_COUNT" -eq 1 ]; then
     run_experiment "ls_count" "$RESULTS_LS_COUNT" "ls_count" "$TIMEOUT_LS_COUNT"
 fi
 
+if [ "$RUN_LS_ALL" -eq 1 ]; then
+    run_experiment "ls_all" "$RESULTS_LS_ALL" "ls_all" "$TIMEOUT_LS_ALL"
+fi
+
+if [ "$RUN_LS_COUNT_ALL" -eq 1 ]; then
+    run_experiment "ls_count_all" "$RESULTS_LS_COUNT_ALL" "ls_count_all" "$TIMEOUT_LS_COUNT_ALL"
+fi
+
 if [ "$RUN_VNS" -eq 1 ]; then
     run_experiment "vns_figures" "$RESULTS_VNS" "vns_figures" "$TIMEOUT_VNS"
 fi
@@ -234,6 +254,27 @@ if [ "$RUN_TABLES" -eq 1 ]; then
 fi
 
 #------------------------------------------------------------------------------
+# Separar resultados por estratégia (se habilitado)
+#------------------------------------------------------------------------------
+if [ "$SPLIT_BY_STRATEGY" -eq 1 ]; then
+    SPLIT_SCRIPT="${PROJECT_DIR}/experiments/scripts/split_by_strategy.py"
+    
+    if [ -f "$SPLIT_SCRIPT" ]; then
+        if [ -f "$RESULTS_LS_ALL" ]; then
+            log_section "Separando ls_all por estratégia"
+            mkdir -p "${RESULTS_BY_STRATEGY}/ls"
+            python3 "$SPLIT_SCRIPT" "$RESULTS_LS_ALL" "${RESULTS_BY_STRATEGY}/ls/"
+        fi
+        
+        if [ -f "$RESULTS_LS_COUNT_ALL" ]; then
+            log_section "Separando ls_count_all por estratégia"
+            mkdir -p "${RESULTS_BY_STRATEGY}/ls_count"
+            python3 "$SPLIT_SCRIPT" "$RESULTS_LS_COUNT_ALL" "${RESULTS_BY_STRATEGY}/ls_count/"
+        fi
+    fi
+fi
+
+#------------------------------------------------------------------------------
 # Mesclar resultados
 #------------------------------------------------------------------------------
 log_section "Mesclando resultados"
@@ -242,6 +283,8 @@ RESULT_FILES=()
 [ -f "$RESULTS_EVAL" ] && RESULT_FILES+=("$RESULTS_EVAL")
 [ -f "$RESULTS_LS" ] && RESULT_FILES+=("$RESULTS_LS")
 [ -f "$RESULTS_LS_COUNT" ] && RESULT_FILES+=("$RESULTS_LS_COUNT")
+[ -f "$RESULTS_LS_ALL" ] && RESULT_FILES+=("$RESULTS_LS_ALL")
+[ -f "$RESULTS_LS_COUNT_ALL" ] && RESULT_FILES+=("$RESULTS_LS_COUNT_ALL")
 [ -f "$RESULTS_VNS" ] && RESULT_FILES+=("$RESULTS_VNS")
 [ -f "$RESULTS_VNS_COUNT" ] && RESULT_FILES+=("$RESULTS_VNS_COUNT")
 [ -f "$RESULTS_TABLES" ] && RESULT_FILES+=("$RESULTS_TABLES")

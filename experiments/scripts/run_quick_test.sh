@@ -103,6 +103,22 @@ else
 fi
 
 #------------------------------------------------------------------------------
+# Teste: ls_all (todas as estratégias de local search)
+#------------------------------------------------------------------------------
+log_section "Teste: ls_all"
+
+timeout $TEST_TIMEOUT "$EXECUTABLE" "$RESULTS_DIR/test_ls_all.json" "ls_all" 2>&1 | tail -5 || true
+
+if [ -f "$RESULTS_DIR/test_ls_all.json" ]; then
+    LINES=$(wc -l < "$RESULTS_DIR/test_ls_all.json")
+    # Contar estratégias únicas
+    STRATEGIES=$(python3 -c "import json; d=json.load(open('$RESULTS_DIR/test_ls_all.json')); print(len(set(x['params'].get('ls_strategy_name','?') for x in d)))" 2>/dev/null || echo "?")
+    log_success "ls_all: ${LINES} linhas, ${STRATEGIES} estratégias"
+else
+    log_warning "ls_all: arquivo não gerado (timeout?)"
+fi
+
+#------------------------------------------------------------------------------
 # Teste: ls_count
 #------------------------------------------------------------------------------
 log_section "Teste: ls_count"
