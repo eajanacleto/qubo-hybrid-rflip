@@ -31,6 +31,8 @@ qubo-hybrid-rflip-experiments/
 ├── scripts/              # Python scripts
 │   ├── genfigures.py     # Generate LaTeX figures
 │   ├── gentables.py      # Generate LaTeX tables
+│   ├── run_experiments.sh # Run all experiments + figures
+│   ├── run_quick_test.sh # Quick validation test
 │   └── convert_eps_to_pdf.sh
 │
 ├── data/                 # Input data
@@ -81,13 +83,19 @@ make setup
 # 2. Build
 make
 
-# 3. Run experiments
+# 3. Run all experiments and generate figures (recommended)
+./scripts/run_experiments.sh
+
+# Or run quick test (30s timeout per experiment)
+./scripts/run_quick_test.sh
+
+# Or run individual experiments
 make run EXP=ls              # Local Search
 make run EXP=vns_figures     # VNS for figures
 make run EXP=eval            # Evaluation
 
-# 4. Generate figures
-make figures RESULTS_FILE=results.json
+# 4. Generate figures from results
+make figures RESULTS_FILE=output/results/results_complete.json
 ```
 
 ## Available Experiments
@@ -124,12 +132,35 @@ make figures RESULTS_FILE=results.json
 
 # Generate figures manually
 source .venv/bin/activate
-cd output/figures
-python ../../scripts/genfigures.py ../../results/results.json
+python scripts/genfigures.py output/results/results.json output/figures/
 
 # Convert EPS to PDF
 cd output/figures
 ../../scripts/convert_eps_to_pdf.sh
+```
+
+## Experiment Runner Scripts
+
+### run_experiments.sh
+Full experiment runner with configurable parameters. Edit the configuration section at the top of the script to customize:
+
+```bash
+# Key configuration options in scripts/run_experiments.sh:
+TIMEOUT_EVAL=0          # Timeout for eval experiment (0=no timeout)
+TIMEOUT_LS=0            # Timeout for ls experiment
+TIMEOUT_VNS=0           # Timeout for vns experiment
+RUN_EVAL=1              # Enable/disable experiments (1=yes, 0=no)
+RUN_LS=1
+RUN_VNS=1
+RUN_TABLES=0            # vns_tables (disabled by default - very long)
+GENERATE_FIGURES=1      # Generate figures after experiments
+```
+
+### run_quick_test.sh
+Quick validation script with 30-second timeouts. Use this to verify the pipeline works:
+
+```bash
+./scripts/run_quick_test.sh
 ```
 
 ## Makefile Targets
