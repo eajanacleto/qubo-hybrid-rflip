@@ -66,15 +66,20 @@ def load_json_robust(filepath: str) -> list:
         return results
 
 
-def split_results(input_file: str, output_dir: str):
-    """Split results file by local search strategy."""
+def split_results(input_file: str, base_output_dir: str, exp_type: str = None):
+    """
+    Split results file by local search strategy.
+    
+    Creates structure: base_output_dir/{strategy_name}/results_{exp_type}.json
+    Also creates/updates results_complete.json in each strategy folder.
+    """
     
     # Load input file (robustly)
     results = load_json_robust(input_file)
     
     if not results:
         print("  No results to split")
-        return
+        return {}
     
     if not isinstance(results, list):
         results = [results]
@@ -85,46 +90,62 @@ def split_results(input_file: str, output_dir: str):
         strategy = get_strategy_name(result)
         by_strategy[strategy].append(result)
     
-    # Create output directory
-    os.makedirs(output_dir, exist_ok=True)
-    
-    # Write separate files
+    # Write separate files in strategy subdirectories
     for strategy, strategy_results in sorted(by_strategy.items()):
-        output_file = os.path.join(output_dir, f"results_{strategy}.json")
+        # Create strategy directory
+        strategy_dir = os.path.join(base_output_dir, strategy)
+        os.makedirs(strategy_dir, exist_ok=True)
+        
+        # Write results for this experiment type
+        if exp_type:
+            output_file = os.path.join(strategy_dir, f"results_{exp_type}.json")
+        else:
+            output_file = os.path.join(strategy_dir, "results.json")
+        
         with open(output_file, "w") as f:
             json.dump(strategy_results, f, indent=1)
-        print(f"  {strategy}: {len(strategy_results)} results -> {output_file}")
+        print(f"    {strategy}: {len(strategy_results)} results -> {os.path.basename(output_file)}")
+        
+        # Update results_complete.json for this strategy
+        complete_file = os.path.join(strategy_dir, "results_complete.json")
+        existing_results = []
+        if os.path.exists(complete_file):
+            try:
+                with open(complete_file) as f:
+                    existing_results = json.load(f)
+                    if not isinstance(existing_results, list):
+                        existing_results = [existing_results]
+            except:
+                existing_results = []
+        
+        # Merge: remove old results of same exp type, add new ones
+        if exp_type:
+            existing_results = [r for r in existing_results 
+                              if r.get("params", {}).get("exp") != strategy_results[0].get("params", {}).get("exp")]
+        existing_results.extend(strategy_results)
+        
+        with open(complete_file, "w") as f:
+            json.dump(existing_results, f, indent=1)
     
-    # Also create a summary file
-    summary = {
-        "total_results": len(results),
-        "strategies": {
-            strategy: len(strategy_results)
-            for strategy, strategy_results in sorted(by_strategy.items())
-        },
-        "input_file": input_file,
-    }
-    summary_file = os.path.join(output_dir, "summary.json")
-    with open(summary_file, "w") as f:
-        json.dump(summary, f, indent=2)
-    print(f"\n  Summary: {summary['strategies']}")
+    return by_strategy
 
 
 def main():
     if len(sys.argv) < 3:
-        print(__doc__)
+        print("Usage: python3 split_by_strategy.py <input.json> <output_dir> [exp_type]")
+        print("Example: python3 split_by_strategy.py results_ls_all.json output/results/ ls")
         sys.exit(1)
     
     input_file = sys.argv[1]
     output_dir = sys.argv[2]
+    exp_type = sys.argv[3] if len(sys.argv) > 3 else None
     
     if not os.path.exists(input_file):
         print(f"Error: Input file not found: {input_file}")
         sys.exit(1)
     
-    print(f"Splitting {input_file} by local search strategy...")
-    split_results(input_file, output_dir)
-    print("Done!")
+    print(f"  Splitting {os.path.basename(input_file)} by strategy...")
+    split_results(input_file, output_dir, exp_type)
 
 
 if __name__ == "__main__":

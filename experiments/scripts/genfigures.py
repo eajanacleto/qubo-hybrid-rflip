@@ -339,10 +339,16 @@ def generate_ls_all_figures(data: List[dict], output_base_dir: str):
         strategy_data = list(strategy_data)
         print(f"  Strategy: {ls_strategy_name} ({len(strategy_data)} results)")
         
-        # Create strategy subdirectory
-        strategy_dir = os.path.join(output_base_dir, ls_strategy_name)
-        os.makedirs(strategy_dir, exist_ok=True)
-        os.chdir(strategy_dir)
+        # Check if output_base_dir already ends with strategy name (already organized)
+        base_dir_name = os.path.basename(output_base_dir.rstrip('/'))
+        if base_dir_name == ls_strategy_name:
+            # Already in the right directory, don't create subdirectory
+            os.chdir(output_base_dir)
+        else:
+            # Create strategy subdirectory
+            strategy_dir = os.path.join(output_base_dir, ls_strategy_name)
+            os.makedirs(strategy_dir, exist_ok=True)
+            os.chdir(strategy_dir)
         
         # Generate figures for this strategy
         for (instance, n), inst_data in groupby(
@@ -399,10 +405,16 @@ def generate_ls_count_all_figures(data: List[dict], output_base_dir: str):
         strategy_data = list(strategy_data)
         print(f"  Strategy: {ls_strategy_name} ({len(strategy_data)} results)")
         
-        # Create strategy subdirectory
-        strategy_dir = os.path.join(output_base_dir, ls_strategy_name)
-        os.makedirs(strategy_dir, exist_ok=True)
-        os.chdir(strategy_dir)
+        # Check if output_base_dir already ends with strategy name (already organized)
+        base_dir_name = os.path.basename(output_base_dir.rstrip('/'))
+        if base_dir_name == ls_strategy_name:
+            # Already in the right directory, don't create subdirectory
+            os.chdir(output_base_dir)
+        else:
+            # Create strategy subdirectory
+            strategy_dir = os.path.join(output_base_dir, ls_strategy_name)
+            os.makedirs(strategy_dir, exist_ok=True)
+            os.chdir(strategy_dir)
         
         # Generate figures for this strategy
         for (instance, n), inst_data in groupby(

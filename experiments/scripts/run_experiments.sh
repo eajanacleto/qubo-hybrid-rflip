@@ -37,28 +37,28 @@ RESULTS_VNS_COUNT="${RESULTS_DIR}/results_vns_count.json"
 RESULTS_TABLES="${RESULTS_DIR}/results_tables.json"
 RESULTS_COMPLETE="${RESULTS_DIR}/results_complete.json"
 
-# Diretório para resultados separados por estratégia
-RESULTS_BY_STRATEGY="${RESULTS_DIR}/by_strategy"
+# Nota: Resultados serão organizados diretamente em pastas por estratégia
+# Ex: results/first_improvement/, results/best_improvement/
 
 # Timeouts (em segundos) - 0 = sem timeout
-TIMEOUT_EVAL=0          # Experimento de avaliação
-TIMEOUT_LS=0            # Local Search
-TIMEOUT_LS_COUNT=0      # Local Search com contagem
-TIMEOUT_LS_ALL=0        # LS todas estratégias
-TIMEOUT_LS_COUNT_ALL=0  # LS count todas estratégias
-TIMEOUT_VNS=0           # VNS para figuras
-TIMEOUT_VNS_COUNT=0     # VNS com contagem
-TIMEOUT_TABLES=0        # VNS para tabelas (mais longo)
+TIMEOUT_EVAL=60          # Experimento de avaliação
+TIMEOUT_LS=60            # Local Search
+TIMEOUT_LS_COUNT=60      # Local Search com contagem
+TIMEOUT_LS_ALL=60        # LS todas estratégias
+TIMEOUT_LS_COUNT_ALL=60  # LS count todas estratégias
+TIMEOUT_VNS=60           # VNS para figuras
+TIMEOUT_VNS_COUNT=60     # VNS com contagem
+TIMEOUT_TABLES=60        # VNS para tabelas (mais longo)
 
 # Experimentos a executar (1=sim, 0=não)
 RUN_EVAL=1
 RUN_LS=1
 RUN_LS_COUNT=1
-RUN_LS_ALL=0            # Todas estratégias de LS (desativado por padrão)
-RUN_LS_COUNT_ALL=0      # Contagem todas estratégias (desativado por padrão)
+RUN_LS_ALL=1            # Todas estratégias de LS (desativado por padrão)
+RUN_LS_COUNT_ALL=1      # Contagem todas estratégias (desativado por padrão)
 RUN_VNS=1
 RUN_VNS_COUNT=1
-RUN_TABLES=0            # Desativado por padrão (muito demorado)
+RUN_TABLES=1            # Desativado por padrão (muito demorado)
 
 # Separar resultados por estratégia (requer ls_all ou ls_count_all)
 SPLIT_BY_STRATEGY=1
@@ -71,7 +71,7 @@ GENERATE_TABLES=1
 COMPILE_FIRST=1
 
 # Modo verbose
-VERBOSE=1
+VERBOSE=0
 
 #==============================================================================
 # FUNÇÕES AUXILIARES
@@ -260,17 +260,40 @@ if [ "$SPLIT_BY_STRATEGY" -eq 1 ]; then
     SPLIT_SCRIPT="${PROJECT_DIR}/experiments/scripts/split_by_strategy.py"
     
     if [ -f "$SPLIT_SCRIPT" ]; then
+        log_section "Organizando resultados por estratégia de local search"
+        
+        # Separar ls_all por estratégia
         if [ -f "$RESULTS_LS_ALL" ]; then
-            log_section "Separando ls_all por estratégia"
-            mkdir -p "${RESULTS_BY_STRATEGY}/ls"
-            python3 "$SPLIT_SCRIPT" "$RESULTS_LS_ALL" "${RESULTS_BY_STRATEGY}/ls/"
+            log_info "Separando ls_all por estratégia"
+            python3 "$SPLIT_SCRIPT" "$RESULTS_LS_ALL" "$RESULTS_DIR" "ls"
         fi
         
+        # Separar ls_count_all por estratégia
         if [ -f "$RESULTS_LS_COUNT_ALL" ]; then
-            log_section "Separando ls_count_all por estratégia"
-            mkdir -p "${RESULTS_BY_STRATEGY}/ls_count"
-            python3 "$SPLIT_SCRIPT" "$RESULTS_LS_COUNT_ALL" "${RESULTS_BY_STRATEGY}/ls_count/"
+            log_info "Separando ls_count_all por estratégia"
+            python3 "$SPLIT_SCRIPT" "$RESULTS_LS_COUNT_ALL" "$RESULTS_DIR" "ls_count"
         fi
+        
+        # Separar vns_tables por estratégia
+        if [ -f "$RESULTS_TABLES" ]; then
+            log_info "Separando vns_tables por estratégia"
+            python3 "$SPLIT_SCRIPT" "$RESULTS_TABLES" "$RESULTS_DIR" "vns_tables"
+        fi
+        
+        # Remover arquivos soltos (agora estão nas pastas por estratégia)
+        log_info "Removendo arquivos soltos da raiz de results/"
+        rm -f "$RESULTS_LS_ALL" "$RESULTS_LS_COUNT_ALL" 2>/dev/null || true
+        rm -rf "${RESULTS_DIR}/by_strategy" 2>/dev/null || true
+        
+        # Remover outros arquivos soltos que não devem estar na raiz
+        rm -f "${RESULTS_DIR}/results_ls.json" "${RESULTS_DIR}/results_ls_count.json" 2>/dev/null || true
+        rm -f "${RESULTS_DIR}/results_tables.json" 2>/dev/null || true
+        
+        # Remover arquivos que não tem estratégia de local search (eval, vns, etc)
+        # Eles ficam apenas no results_complete.json de cada estratégia se relevante
+        rm -f "${RESULTS_DIR}/results_eval.json" 2>/dev/null || true
+        rm -f "${RESULTS_DIR}/results_vns.json" "${RESULTS_DIR}/results_vns_count.json" 2>/dev/null || true
+        rm -f "${RESULTS_DIR}/results_complete.json" 2>/dev/null || true
     fi
 fi
 
@@ -297,9 +320,9 @@ else
 fi
 
 #------------------------------------------------------------------------------
-# Gerar figuras
+# Gerar figuras (organizadas por estratégia)
 #------------------------------------------------------------------------------
-if [ "$GENERATE_FIGURES" -eq 1 ] && [ -f "$RESULTS_COMPLETE" ]; then
+if [ "$GENERATE_FIGURES" -eq 1 ]; then
     log_section "Gerando figuras"
     
     if [ -f "$GENFIGURES_SCRIPT" ]; then
@@ -311,7 +334,24 @@ if [ "$GENERATE_FIGURES" -eq 1 ] && [ -f "$RESULTS_COMPLETE" ]; then
             log_info "Ambiente virtual ativado"
         fi
         
-        python3 "$GENFIGURES_SCRIPT" "$RESULTS_COMPLETE" "$FIGURES_DIR/"
+        # Gerar figuras para cada estratégia
+        for STRATEGY_DIR in "$RESULTS_DIR"/*/; do
+            if [ -d "$STRATEGY_DIR" ]; then
+                STRATEGY_NAME=$(basename "$STRATEGY_DIR")
+                STRATEGY_RESULTS="${STRATEGY_DIR}/results_complete.json"
+                STRATEGY_FIGURES="${FIGURES_DIR}/${STRATEGY_NAME}"
+                
+                if [ -f "$STRATEGY_RESULTS" ]; then
+                    log_info "Gerando figuras para: ${STRATEGY_NAME}"
+                    mkdir -p "$STRATEGY_FIGURES"
+                    python3 "$GENFIGURES_SCRIPT" "$STRATEGY_RESULTS" "$STRATEGY_FIGURES/" 2>&1 | grep -E '(✓|Error|No )' || true
+                fi
+            fi
+        done
+        
+        # Remover figuras soltas da raiz (antigas)
+        log_info "Removendo figuras antigas da raiz de figures/"
+        find "$FIGURES_DIR" -maxdepth 1 -type f \( -name "*.pdf" -o -name "*.eps" -o -name "*.tex" \) -delete 2>/dev/null || true
         
         # Contar figuras geradas
         PDF_COUNT=$(find "$FIGURES_DIR" -name "*.pdf" 2>/dev/null | wc -l)
@@ -319,26 +359,42 @@ if [ "$GENERATE_FIGURES" -eq 1 ] && [ -f "$RESULTS_COMPLETE" ]; then
         
         log_success "Figuras geradas: ${PDF_COUNT} PDFs, ${EPS_COUNT} EPS"
         
-        # Limpar arquivos temporários
-        rm -f "$FIGURES_DIR"/*.aux "$FIGURES_DIR"/*.dvi "$FIGURES_DIR"/*.log
+        # Limpar arquivos temporários em todas as pastas
+        find "$FIGURES_DIR" -type f \( -name "*.aux" -o -name "*.dvi" -o -name "*.log" \) -delete 2>/dev/null || true
     else
         log_warning "Script de figuras não encontrado: ${GENFIGURES_SCRIPT}"
     fi
 fi
 
 #------------------------------------------------------------------------------
-# Gerar tabelas
+# Gerar tabelas (organizadas por estratégia)
 #------------------------------------------------------------------------------
-if [ "$GENERATE_TABLES" -eq 1 ] && [ -f "$RESULTS_COMPLETE" ]; then
+if [ "$GENERATE_TABLES" -eq 1 ]; then
     log_section "Gerando tabelas"
     
     if [ -f "$GENTABLES_SCRIPT" ]; then
-        cd "$TABLES_DIR"
-        python3 "$GENTABLES_SCRIPT" "$RESULTS_COMPLETE" > tables_output.txt 2>&1 || true
+        # Gerar tabelas para cada estratégia
+        for STRATEGY_DIR in "$RESULTS_DIR"/*/; do
+            if [ -d "$STRATEGY_DIR" ]; then
+                STRATEGY_NAME=$(basename "$STRATEGY_DIR")
+                STRATEGY_RESULTS="${STRATEGY_DIR}/results_complete.json"
+                STRATEGY_TABLES="${TABLES_DIR}/${STRATEGY_NAME}"
+                
+                if [ -f "$STRATEGY_RESULTS" ]; then
+                    log_info "Gerando tabelas para: ${STRATEGY_NAME}"
+                    mkdir -p "$STRATEGY_TABLES"
+                    cd "$STRATEGY_TABLES"
+                    python3 "$GENTABLES_SCRIPT" "$STRATEGY_RESULTS" > tables_output.txt 2>&1 || true
+                    
+                    if [ -s "tables_output.txt" ]; then
+                        log_success "Tabelas geradas em ${STRATEGY_TABLES}/tables_output.txt"
+                    fi
+                fi
+            fi
+        done
         
-        if [ -s "tables_output.txt" ]; then
-            log_success "Tabelas geradas em ${TABLES_DIR}/tables_output.txt"
-        fi
+        # Remover tabelas antigas da raiz
+        rm -f "${TABLES_DIR}/tables_output.txt" 2>/dev/null || true
     else
         log_warning "Script de tabelas não encontrado: ${GENTABLES_SCRIPT}"
     fi
