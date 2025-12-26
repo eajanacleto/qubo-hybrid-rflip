@@ -47,14 +47,12 @@ qubo-hybrid-rflip-experiments/
 │   ├── config/           # JSON configuration files
 │   │   ├── instances.json    # Instance set definitions
 │   │   └── experiments.json  # Experiment configurations
-│   ├── scripts/          # Experiment scripts
-│   │   ├── run_experiments.sh   # Full experiment runner
-│   │   ├── run_quick_test.sh    # Quick validation test
-│   │   ├── genfigures.py        # Generate LaTeX figures
-│   │   ├── gentables.py         # Generate LaTeX tables
-│   │   └── convert_eps_to_pdf.sh
-│   ├── results/          # Experiment results (generated)
-│   └── figures/          # Generated figures (generated)
+│   └── scripts/          # Experiment scripts
+│       ├── run_experiments.sh   # Full experiment runner
+│       ├── run_quick_test.sh    # Quick validation test
+│       ├── genfigures.py        # Generate LaTeX figures
+│       ├── gentables.py         # Generate LaTeX tables
+│       └── convert_eps_to_pdf.sh
 │
 ├── data/                 # Input data
 │   └── instances/        # Problem instances (auto-downloaded)

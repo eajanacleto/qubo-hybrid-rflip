@@ -66,6 +66,47 @@ using std::string;
 using std::vector;
 
 // ============================================================================
+// Configuration loading
+// ============================================================================
+
+const string CONFIG_PATH = "experiments/config/instances.json";
+
+/**
+ * @brief Load instance set from JSON configuration file.
+ */
+vector<string> load_instances(const string& set_name) {
+  ifstream file(CONFIG_PATH);
+  if (!file) {
+    throw std::runtime_error("Cannot open config file: " + CONFIG_PATH);
+  }
+  
+  json config;
+  file >> config;
+  
+  const auto& sets = config["instance_sets"];
+  if (!sets.contains(set_name)) {
+    throw std::runtime_error("Unknown instance set: " + set_name);
+  }
+  
+  vector<string> result;
+  const auto& set = sets[set_name];
+  
+  if (set.contains("compose")) {
+    // Recursively load composed sets
+    for (const auto& sub_name : set["compose"]) {
+      auto sub_instances = load_instances(sub_name.get<string>());
+      result.insert(result.end(), sub_instances.begin(), sub_instances.end());
+    }
+  } else if (set.contains("instances")) {
+    for (const auto& inst : set["instances"]) {
+      result.push_back(inst.get<string>());
+    }
+  }
+  
+  return result;
+}
+
+// ============================================================================
 // Experiment runners
 // ============================================================================
 
@@ -212,37 +253,7 @@ void run_vns_tables_experiment(ExperimentRunner& runner, const vector<string>& i
   }
 }
 
-// ============================================================================
-// Instance set definitions
-// ============================================================================
-
-const vector<string> INSTANCES_EVAL = {"G54"};
-
-const vector<string> INSTANCES_LS = {"bqp250.1", "bqp500.1", "G43", "G22"};
-
-const vector<string> INSTANCES_VNS_FIGURES = {"bqp100.1", "bqp250.1", "bqp500.1", "G1"};
-
-const vector<string> INSTANCES_VNS_TABLES = {
-    "bqp50.1",   "bqp50.2",   "bqp50.3",   "bqp50.4",    "bqp50.5",    "bqp50.6",
-    "bqp50.7",   "bqp50.8",   "bqp50.9",   "bqp50.10",   "bqp100.1",   "bqp100.2",
-    "bqp100.3",  "bqp100.4",  "bqp100.5",  "bqp100.6",   "bqp100.7",   "bqp100.8",
-    "bqp100.9",  "bqp100.10", "bqp250.1",  "bqp250.2",   "bqp250.3",   "bqp250.4",
-    "bqp250.5",  "bqp250.6",  "bqp250.7",  "bqp250.8",   "bqp250.9",   "bqp250.10",
-    "bqp500.1",  "bqp500.2",  "bqp500.3",  "bqp500.4",   "bqp500.5",   "bqp500.6",
-    "bqp500.7",  "bqp500.8",  "bqp500.9",  "bqp500.10",  "G1",         "G2",
-    "G3",        "G4",        "G5",        "G6",         "G7",         "G8",
-    "G9",        "G10",       "G11",       "G12",        "G13",        "G14",
-    "G15",       "G16",       "G17",       "G18",        "G19",        "G20",
-    "G21",       "bqp1000.1", "bqp1000.2", "bqp1000.3",  "bqp1000.4",  "bqp1000.5",
-    "bqp1000.6", "bqp1000.7", "bqp1000.8", "bqp1000.9",  "bqp1000.10", "G43",
-    "G44",       "G45",       "G46",       "G47",        "G51",        "G52",
-    "G53",       "G54",       "G22",       "G23",        "G24",        "G25",
-    "G26",       "G27",       "G28",       "G29",        "G30",
-    "G31",       "G32",       "G33",       "G34",        "G35",        "G36",
-    "G37",       "G38",       "G39",       "G40",        "G41",        "G42",
-    "bqp2500.1", "bqp2500.2", "bqp2500.3", "bqp2500.4",  "bqp2500.5",  "bqp2500.6",
-    "bqp2500.7", "bqp2500.8", "bqp2500.9", "bqp2500.10",
-};
+// Instance sets are now loaded from experiments/config/instances.json
 
 // ============================================================================
 // Main
@@ -280,22 +291,22 @@ int main(int argc, const char* argv[]) {
 
   try {
     if (experiment == "eval") {
-      run_eval_experiment(runner, INSTANCES_EVAL);
+      run_eval_experiment(runner, load_instances("eval"));
     } 
     else if (experiment == "ls") {
-      run_ls_experiment(runner, INSTANCES_LS);
+      run_ls_experiment(runner, load_instances("ls_figures"));
     }
     else if (experiment == "ls_count") {
-      run_ls_count_experiment(runner, INSTANCES_LS);
+      run_ls_count_experiment(runner, load_instances("ls_figures"));
     }
     else if (experiment == "vns_figures") {
-      run_vns_figures_experiment(runner, INSTANCES_VNS_FIGURES);
+      run_vns_figures_experiment(runner, load_instances("vns_figures"));
     }
     else if (experiment == "vns_figures_count") {
-      run_vns_figures_count_experiment(runner, INSTANCES_VNS_FIGURES);
+      run_vns_figures_count_experiment(runner, load_instances("vns_figures"));
     }
     else if (experiment == "vns_tables") {
-      run_vns_tables_experiment(runner, INSTANCES_VNS_TABLES);
+      run_vns_tables_experiment(runner, load_instances("vns_tables_all"));
     }
     else {
       cerr << "Error: Unknown experiment type: " << experiment << endl;
