@@ -38,7 +38,10 @@ def create_figure(filename: str, options: List[str], *plots: Plot):
             for plot in plots:
                 axis.append(plot)
     doc.generate_tex(filename)
-    os.system(f"latex {filename}.tex && dvips {filename}.dvi -o {filename}.eps")
+    # Gerar PDF diretamente com pdflatex
+    os.system(f"pdflatex -interaction=nonstopmode {filename}.tex > /dev/null 2>&1")
+    # Também gerar EPS para compatibilidade
+    os.system(f"latex {filename}.tex > /dev/null 2>&1 && dvips {filename}.dvi -o {filename}.eps > /dev/null 2>&1")
 
 
 with open(sys.argv[1]) as fp:

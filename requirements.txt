@@ -1,0 +1,2 @@
+# Python dependencies for QUBO Hybrid r-Flip Experiments
+pylatex>=1.4.0

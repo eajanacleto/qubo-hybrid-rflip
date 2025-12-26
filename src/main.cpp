@@ -75,7 +75,7 @@ struct ubqp {
    * Constructs a UBQP problem instance from an OR-Library file.
    */
   static ubqp from_bqp(size_t n, size_t number) {
-    ifstream file("instances/bqp" + to_string(n) + string(".txt"), ifstream::in);
+    ifstream file("data/instances/bqp" + to_string(n) + string(".txt"), ifstream::in);
     assert(file);
     size_t count;
     file >> count;
@@ -105,7 +105,7 @@ struct ubqp {
    * Constructs a UBQP problem instance from a Max-Cut problem file.
    */
   static ubqp from_maxcut(size_t number) {
-    ifstream file("instances/G" + to_string(number), ifstream::in);
+    ifstream file("data/instances/G" + to_string(number), ifstream::in);
     assert(file);
     size_t n, nonzeros;
     file >> n >> nonzeros;
@@ -761,7 +761,7 @@ int main(int argc, const char* argv[]) {
   const string experiment(argv[2]);
 
   if (experiment == "eval")
-    for (string instance : {"G55"}) {
+    for (string instance : {"G54"}) {
       ubqp Q = ubqp::load(instance);
       size_t n1_step = max(Q.n / 7, size_t(1));
       size_t r_step = max(Q.n / 100, size_t(1));
