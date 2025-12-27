@@ -19,90 +19,80 @@
     
     "eval_benchmark": {
       "description": "Evaluation time comparison between strategies",
-      "algorithms": ["eval"],
+      "algorithms": [{"name": "eval", "timeout": 3600}],
       "instance_set": "eval",
-      "timeout": 3600,
       "generate_figures": true,
       "generate_tables": false
     },
     
     "ls_figures": {
       "description": "Local search experiments for figure generation",
-      "algorithms": ["ls_all"],
+      "algorithms": [{"name": "ls_all", "timeout": 3600}],
       "instance_set": "ls_figures",
-      "timeout": 3600,
       "generate_figures": true,
       "generate_tables": false
     },
     
     "ls_count_figures": {
       "description": "Local search counting for figure generation",
-      "algorithms": ["ls_count_all"],
+      "algorithms": [{"name": "ls_count_all", "timeout": 3600}],
       "instance_set": "ls_figures",
-      "timeout": 3600,
       "generate_figures": true,
       "generate_tables": false
     },
     
     "vns_figures": {
       "description": "VNS experiments for figure generation",
-      "algorithms": ["vns_figures"],
+      "algorithms": [{"name": "vns_figures", "timeout": 7200}],
       "instance_set": "vns_figures",
-      "timeout": 7200,
       "generate_figures": true,
       "generate_tables": false
     },
     
     "vns_count_figures": {
       "description": "VNS counting experiments for figure generation",
-      "algorithms": ["vns_figures_count"],
+      "algorithms": [{"name": "vns_figures_count", "timeout": 7200}],
       "instance_set": "vns_figures",
-      "timeout": 7200,
       "generate_figures": true,
       "generate_tables": false
     },
     
     "vns_tables_small": {
       "description": "VNS benchmark - small instances only (n=50)",
-      "algorithms": ["vns_tables_all"],
+      "algorithms": [{"name": "vns_tables_all", "timeout": 3600}],
       "instance_set": "vns_tables_small",
-      "timeout": 3600,
       "generate_figures": false,
       "generate_tables": true
     },
     
     "vns_tables_medium": {
       "description": "VNS benchmark - medium instances (n=100, 250)",
-      "algorithms": ["vns_tables_all"],
+      "algorithms": [{"name": "vns_tables_all", "timeout": 14400}],
       "instance_set": "vns_tables_medium",
-      "timeout": 14400,
       "generate_figures": false,
       "generate_tables": true
     },
     
     "vns_tables_large": {
       "description": "VNS benchmark - large instances (n=500, 1000, 2500)",
-      "algorithms": ["vns_tables_all"],
+      "algorithms": [{"name": "vns_tables_all", "timeout": 86400}],
       "instance_set": "vns_tables_large",
-      "timeout": 86400,
       "generate_figures": false,
       "generate_tables": true
     },
     
     "vns_tables_full": {
       "description": "Complete VNS benchmark - ALL instances",
-      "algorithms": ["vns_tables_all"],
+      "algorithms": [{"name": "vns_tables_all", "timeout": 0}],
       "instance_set": "vns_tables_all",
-      "timeout": 0,
       "generate_figures": false,
       "generate_tables": true
     },
     
     "gset_benchmark": {
       "description": "VNS benchmark on Gset instances",
-      "algorithms": ["vns_tables_all"],
+      "algorithms": [{"name": "vns_tables_all", "timeout": 14400}],
       "instance_set": "gset_small",
-      "timeout": 14400,
       "generate_figures": false,
       "generate_tables": true
     },
@@ -117,7 +107,6 @@
         "vns_count_figures",
         "vns_tables_full"
       ],
-      "timeout": 0,
       "generate_figures": true,
       "generate_tables": true
     }
