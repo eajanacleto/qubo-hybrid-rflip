@@ -5,12 +5,12 @@
     "quick_test": {
       "description": "Quick validation test (small instances, fast)",
       "algorithms": [
-        "eval",
-        "ls_all",
-        "ls_count_all",
-        "vns_figures",
-        "vns_figures_count",
-        "vns_tables_all"
+        {"name": "eval", "timeout": 60},
+        {"name": "ls_all", "timeout": 60},
+        {"name": "ls_count_all", "timeout": 60},
+        {"name": "vns_figures", "timeout": 60},
+        {"name": "vns_figures_count", "timeout": 60},
+        {"name": "vns_tables_all", "timeout": 60}
       ],
       "instance_set": "quick_test",
       "timeout": 120,

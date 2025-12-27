@@ -80,18 +80,30 @@ with open("experiments/config/experiments.json") as f:
 experiments = config.get("experiments", {})
 for name, exp in experiments.items():
     desc = exp.get("description", "No description")
-    # Support both 'algorithms' (list) and 'algorithm' (single)
-    algos = exp.get("algorithms", [])
-    if not algos:
+    default_timeout = exp.get("timeout", 0)
+    
+    # Support algorithms as list of strings or objects
+    raw_algos = exp.get("algorithms", [])
+    if not raw_algos:
         single = exp.get("algorithm", "")
-        algos = [single] if single else []
-    algo_str = ", ".join(algos) if algos else "N/A"
+        raw_algos = [single] if single else []
+    
+    algo_parts = []
+    for algo in raw_algos:
+        if isinstance(algo, dict):
+            name_str = algo.get("name", "?")
+            t = algo.get("timeout", default_timeout)
+            algo_parts.append(f"{name_str}({t}s)")
+        else:
+            algo_parts.append(str(algo))
+    
+    algo_str = ", ".join(algo_parts) if algo_parts else "N/A"
     instances = exp.get("instance_set", "N/A")
-    timeout = exp.get("timeout", 0)
-    timeout_str = f"{timeout}s" if timeout > 0 else "unlimited"
+    timeout_str = f"{default_timeout}s" if default_timeout > 0 else "unlimited"
     
     print(f"  {name:20s} - {desc}")
-    print(f"                       Algorithms: {algo_str}, Instances: {instances}, Timeout: {timeout_str}")
+    print(f"                       Algorithms: {algo_str}")
+    print(f"                       Instances: {instances}, Default timeout: {timeout_str}")
     print()
 EOF
 }
@@ -117,13 +129,28 @@ def shell_escape(s):
     return shlex.quote(str(s)) if s else "''"
 
 # Support both 'algorithm' (single) and 'algorithms' (list)
-algorithms = exp.get('algorithms', [])
-if not algorithms:
+# Each algorithm can be a string or {"name": "algo", "timeout": 123}
+raw_algorithms = exp.get('algorithms', [])
+if not raw_algorithms:
     single = exp.get('algorithm', '')
-    algorithms = [single] if single else []
-print(f"EXP_ALGORITHMS={shell_escape(','.join(algorithms))}")
+    raw_algorithms = [single] if single else []
+
+default_timeout = exp.get('timeout', 0)
+algo_names = []
+algo_timeouts = []
+
+for algo in raw_algorithms:
+    if isinstance(algo, dict):
+        algo_names.append(algo.get('name', ''))
+        algo_timeouts.append(str(algo.get('timeout', default_timeout)))
+    else:
+        algo_names.append(str(algo))
+        algo_timeouts.append(str(default_timeout))
+
+print(f"EXP_ALGORITHMS={shell_escape(','.join(algo_names))}")
+print(f"EXP_ALGO_TIMEOUTS={shell_escape(','.join(algo_timeouts))}")
 print(f"EXP_INSTANCE_SET={shell_escape(exp.get('instance_set', ''))}")
-print(f"EXP_TIMEOUT={exp.get('timeout', 0)}")
+print(f"EXP_TIMEOUT={default_timeout}")
 print(f"EXP_GEN_FIGURES={1 if exp.get('generate_figures', False) else 0}")
 print(f"EXP_GEN_TABLES={1 if exp.get('generate_tables', False) else 0}")
 print(f"EXP_DESCRIPTION={shell_escape(exp.get('description', ''))}")
@@ -364,18 +391,20 @@ run_experiment() {
     # Mostrar instâncias
     list_instances "$EXP_INSTANCE_SET"
     
-    # Aplicar override de timeout se especificado
-    local timeout="${OVERRIDE_TIMEOUT:-$EXP_TIMEOUT}"
-    
-    # Executar todos os algoritmos do experimento
+    # Executar todos os algoritmos do experimento com seus timeouts específicos
     IFS=',' read -ra ALGO_LIST <<< "$EXP_ALGORITHMS"
+    IFS=',' read -ra TIMEOUT_LIST <<< "$EXP_ALGO_TIMEOUTS"
     local algo_count=${#ALGO_LIST[@]}
     local algo_idx=0
     
     for algorithm in "${ALGO_LIST[@]}"; do
+        # Timeout: override > específico do algoritmo > padrão do experimento
+        local algo_timeout="${TIMEOUT_LIST[$algo_idx]}"
+        local timeout="${OVERRIDE_TIMEOUT:-$algo_timeout}"
+        
         algo_idx=$((algo_idx + 1))
         if [ $algo_count -gt 1 ]; then
-            log_info "Algoritmo $algo_idx/$algo_count: $algorithm"
+            log_info "Algoritmo $algo_idx/$algo_count: $algorithm (timeout: ${timeout}s)"
         fi
         run_single_experiment "$exp_name" "$algorithm" "$EXP_INSTANCE_SET" "$timeout"
     done
