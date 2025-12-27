@@ -80,13 +80,18 @@ with open("experiments/config/experiments.json") as f:
 experiments = config.get("experiments", {})
 for name, exp in experiments.items():
     desc = exp.get("description", "No description")
-    algo = exp.get("algorithm", "N/A")
+    # Support both 'algorithms' (list) and 'algorithm' (single)
+    algos = exp.get("algorithms", [])
+    if not algos:
+        single = exp.get("algorithm", "")
+        algos = [single] if single else []
+    algo_str = ", ".join(algos) if algos else "N/A"
     instances = exp.get("instance_set", "N/A")
     timeout = exp.get("timeout", 0)
     timeout_str = f"{timeout}s" if timeout > 0 else "unlimited"
     
     print(f"  {name:20s} - {desc}")
-    print(f"                       Algorithm: {algo}, Instances: {instances}, Timeout: {timeout_str}")
+    print(f"                       Algorithms: {algo_str}, Instances: {instances}, Timeout: {timeout_str}")
     print()
 EOF
 }
@@ -111,7 +116,12 @@ if not exp:
 def shell_escape(s):
     return shlex.quote(str(s)) if s else "''"
 
-print(f"EXP_ALGORITHM={shell_escape(exp.get('algorithm', ''))}")
+# Support both 'algorithm' (single) and 'algorithms' (list)
+algorithms = exp.get('algorithms', [])
+if not algorithms:
+    single = exp.get('algorithm', '')
+    algorithms = [single] if single else []
+print(f"EXP_ALGORITHMS={shell_escape(','.join(algorithms))}")
 print(f"EXP_INSTANCE_SET={shell_escape(exp.get('instance_set', ''))}")
 print(f"EXP_TIMEOUT={exp.get('timeout', 0)}")
 print(f"EXP_GEN_FIGURES={1 if exp.get('generate_figures', False) else 0}")
@@ -170,7 +180,9 @@ run_single_experiment() {
     local instance_set="$3"
     local timeout="$4"
     
-    local output_file="${RESULTS_DIR}/results_${exp_name}.json"
+    # Cada algoritmo tem seu próprio arquivo de saída
+    local output_file="${RESULTS_DIR}/results_${exp_name}_${algorithm}.json"
+    local stdout_log="${RESULTS_DIR}/.stdout_${exp_name}_${algorithm}.log"
     
     log_info "Executando: ${exp_name}"
     log_info "  Algoritmo: ${algorithm}"
@@ -185,28 +197,140 @@ run_single_experiment() {
         export OMP_NUM_THREADS="$MAX_THREADS"
     fi
     
-    # Executar com ou sem timeout
+    # Executar com ou sem timeout, capturando stdout
+    local was_timeout=0
     if [ "$timeout" -gt 0 ]; then
         log_info "  Timeout: ${timeout}s"
-        timeout "$timeout" "$EXECUTABLE" "$output_file" "$algorithm" "$instance_set" || {
+        timeout "$timeout" "$EXECUTABLE" "$output_file" "$algorithm" "$instance_set" 2>&1 | tee "$stdout_log" || {
             local exit_code=$?
             if [ $exit_code -eq 124 ]; then
                 log_warning "Experimento interrompido por timeout"
+                was_timeout=1
             else
                 log_error "Experimento falhou (código: $exit_code)"
+                rm -f "$stdout_log"
                 return 1
             fi
         }
     else
-        "$EXECUTABLE" "$output_file" "$algorithm" "$instance_set"
+        "$EXECUTABLE" "$output_file" "$algorithm" "$instance_set" 2>&1 | tee "$stdout_log"
     fi
     
     local end_time=$(date +%s)
     local duration=$((end_time - start_time))
     
+    # Validar e corrigir JSON se necessário (pode estar truncado pelo timeout)
     if [ -f "$output_file" ]; then
-        local results=$(grep -c '"result"' "$output_file" 2>/dev/null || echo 0)
-        log_success "Experimento ${exp_name} concluído em ${duration}s (${results} resultados)"
+        python3 << EOF
+import json
+import sys
+import re
+import os
+
+output_file = "$output_file"
+stdout_log = "$stdout_log"
+was_timeout = $was_timeout
+
+def recover_from_stdout(log_file):
+    """Recover results from stdout log (<<< params / >>> result pairs)"""
+    if not os.path.exists(log_file):
+        return []
+    
+    results = []
+    current_params = None
+    
+    with open(log_file, 'r') as f:
+        for line in f:
+            line = line.strip()
+            if line.startswith('<<< '):
+                try:
+                    current_params = json.loads(line[4:])
+                except:
+                    current_params = None
+            elif line.startswith('>>> ') and current_params:
+                try:
+                    result = json.loads(line[4:])
+                    results.append({"params": current_params, "result": result})
+                except:
+                    pass
+                current_params = None
+    
+    return results
+
+try:
+    # Verificar se arquivo existe e tem conteúdo
+    if not os.path.exists(output_file) or os.path.getsize(output_file) == 0:
+        # Tentar recuperar do stdout
+        if was_timeout and os.path.exists(stdout_log):
+            results = recover_from_stdout(stdout_log)
+            if results:
+                with open(output_file, 'w') as f:
+                    json.dump(results, f)
+                print(f"Recuperado do stdout: {len(results)} resultados")
+            else:
+                with open(output_file, 'w') as f:
+                    json.dump([], f)
+                print("Nenhum resultado recuperado")
+        else:
+            with open(output_file, 'w') as f:
+                json.dump([], f)
+            print("Arquivo vazio criado")
+        sys.exit(0)
+    
+    with open(output_file, 'r') as f:
+        content = f.read().strip()
+    
+    # Tentar parsear normalmente
+    try:
+        data = json.loads(content)
+        count = len(data) if isinstance(data, list) else 1
+        print(f"JSON válido: {count} resultados")
+        sys.exit(0)
+    except json.JSONDecodeError as e:
+        print(f"JSON truncado, tentando recuperar do stdout...")
+    
+    # JSON truncado - recuperar do stdout log
+    if os.path.exists(stdout_log):
+        results = recover_from_stdout(stdout_log)
+        if results:
+            with open(output_file, 'w') as f:
+                json.dump(results, f)
+            print(f"Recuperado do stdout: {len(results)} resultados")
+            sys.exit(0)
+    
+    # Última tentativa: regex no arquivo JSON
+    pattern = r'\{"params":\s*(\{[^}]+\}),\s*"result":\s*(\{[^}]+\})\}'
+    matches = re.findall(pattern, content)
+    
+    results = []
+    for params_str, result_str in matches:
+        try:
+            params = json.loads(params_str)
+            result = json.loads(result_str)
+            results.append({"params": params, "result": result})
+        except:
+            pass
+    
+    if results:
+        with open(output_file, 'w') as f:
+            json.dump(results, f)
+        print(f"Recuperado com regex: {len(results)} resultados")
+    else:
+        with open(output_file, 'w') as f:
+            json.dump([], f)
+        print("Nenhum resultado recuperado")
+
+except Exception as e:
+    print(f"Erro: {e}", file=sys.stderr)
+    with open(output_file, 'w') as f:
+        json.dump([], f)
+EOF
+        
+        # Limpar log de stdout
+        rm -f "$stdout_log"
+        
+        local results=$(python3 -c "import json; print(len(json.load(open('$output_file'))))" 2>/dev/null || echo 0)
+        log_success "Experimento ${exp_name}/${algorithm} concluído em ${duration}s (${results} resultados)"
     else
         log_warning "Arquivo de saída não gerado"
     fi
@@ -220,7 +344,7 @@ run_experiment() {
     # Carregar configuração do experimento
     eval "$(get_experiment_config "$exp_name")"
     
-    if [ -z "$EXP_ALGORITHM" ] && [ "$EXP_IS_PIPELINE" != "1" ]; then
+    if [ -z "$EXP_ALGORITHMS" ] && [ "$EXP_IS_PIPELINE" != "1" ]; then
         log_error "Experimento não encontrado: ${exp_name}"
         return 1
     fi
@@ -243,26 +367,74 @@ run_experiment() {
     # Aplicar override de timeout se especificado
     local timeout="${OVERRIDE_TIMEOUT:-$EXP_TIMEOUT}"
     
-    # Executar experimento
-    run_single_experiment "$exp_name" "$EXP_ALGORITHM" "$EXP_INSTANCE_SET" "$timeout"
+    # Executar todos os algoritmos do experimento
+    IFS=',' read -ra ALGO_LIST <<< "$EXP_ALGORITHMS"
+    local algo_count=${#ALGO_LIST[@]}
+    local algo_idx=0
+    
+    for algorithm in "${ALGO_LIST[@]}"; do
+        algo_idx=$((algo_idx + 1))
+        if [ $algo_count -gt 1 ]; then
+            log_info "Algoritmo $algo_idx/$algo_count: $algorithm"
+        fi
+        run_single_experiment "$exp_name" "$algorithm" "$EXP_INSTANCE_SET" "$timeout"
+    done
+    
+    # Juntar resultados de todos os algoritmos em um arquivo consolidado
+    local combined_file="${RESULTS_DIR}/results_${exp_name}.json"
+    log_info "Consolidando resultados..."
+    
+    python3 << EOF
+import json
+import glob
+import os
+
+results_dir = "$RESULTS_DIR"
+exp_name = "$exp_name"
+algorithms = "$EXP_ALGORITHMS".split(',')
+
+all_results = []
+files_found = []
+
+for algo in algorithms:
+    algo_file = os.path.join(results_dir, f"results_{exp_name}_{algo}.json")
+    if os.path.exists(algo_file):
+        try:
+            with open(algo_file) as f:
+                data = json.load(f)
+                if isinstance(data, list):
+                    all_results.extend(data)
+                    files_found.append(f"{algo}: {len(data)} results")
+        except Exception as e:
+            print(f"  Aviso: Erro ao ler {algo_file}: {e}")
+
+if all_results:
+    with open("$combined_file", 'w') as f:
+        json.dump(all_results, f)
+    print(f"  Arquivos processados: {len(files_found)}")
+    for f in files_found:
+        print(f"    {f}")
+    print(f"  Total consolidado: {len(all_results)} resultados")
+else:
+    print("  Nenhum resultado para consolidar")
+EOF
     
     # Separar por estratégia se necessário
-    local output_file="${RESULTS_DIR}/results_${exp_name}.json"
-    if [ -f "$output_file" ] && [ -f "$SPLIT_SCRIPT" ]; then
-        if grep -q '"ls_strategy_name"' "$output_file" 2>/dev/null; then
+    if [ -f "$combined_file" ] && [ -f "$SPLIT_SCRIPT" ]; then
+        if grep -q '"ls_strategy_name"' "$combined_file" 2>/dev/null; then
             log_info "Separando resultados por estratégia de local search..."
-            python3 "$SPLIT_SCRIPT" "$output_file" "$RESULTS_DIR" "${exp_name}"
+            python3 "$SPLIT_SCRIPT" "$combined_file" "$RESULTS_DIR" "${exp_name}"
         fi
     fi
     
     # Gerar figuras
     if [ "$EXP_GEN_FIGURES" = "1" ] && [ "$GENERATE_FIGURES" = "1" ]; then
-        generate_figures "$output_file"
+        generate_figures "$combined_file"
     fi
     
     # Gerar tabelas
     if [ "$EXP_GEN_TABLES" = "1" ] && [ "$GENERATE_TABLES" = "1" ]; then
-        generate_tables "$output_file"
+        generate_tables "$combined_file"
     fi
 }
 
@@ -320,20 +492,20 @@ generate_tables() {
 #==============================================================================
 
 show_menu() {
-    echo -e "${CYAN}"
-    echo "=============================================="
-    echo "  QUBO Hybrid R-Flip - Experiment Runner"
-    echo "=============================================="
-    echo -e "${NC}"
-    echo ""
+    echo -e "${CYAN}" >&2
+    echo "==============================================" >&2
+    echo "  QUBO Hybrid R-Flip - Experiment Runner" >&2
+    echo "==============================================" >&2
+    echo -e "${NC}" >&2
+    echo "" >&2
     
-    list_experiments
+    list_experiments >&2
     
-    echo -e "${BOLD}Digite o nome do experimento (ou 'q' para sair):${NC}"
-    read -r choice
+    echo -e "${BOLD}Digite o nome do experimento (ou 'q' para sair):${NC}" >&2
+    read -r choice </dev/tty
     
     if [ "$choice" = "q" ] || [ "$choice" = "quit" ] || [ "$choice" = "exit" ]; then
-        echo "Saindo..."
+        echo "Saindo..." >&2
         exit 0
     fi
     
