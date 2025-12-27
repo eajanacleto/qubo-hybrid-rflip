@@ -13,7 +13,6 @@
         {"name": "vns_tables_all", "timeout": 60}
       ],
       "instance_set": "quick_test",
-      "timeout": 120,
       "generate_figures": true,
       "generate_tables": true
     },
